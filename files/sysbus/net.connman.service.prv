@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=net.connman
+Exec=/usr/bin/connman-adapter
+Type=static

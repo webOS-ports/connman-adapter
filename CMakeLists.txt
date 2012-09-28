@@ -35,7 +35,7 @@ include_directories(src/)
 
 file(GLOB SOURCE_FILES src/*.cpp)
 
-# webos_build_system_bus_files()
+webos_build_system_bus_files()
 
 add_executable(connman-adapter ${SOURCE_FILES})
 

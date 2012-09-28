@@ -1,0 +1,14 @@
+{
+    "role": {
+        "exeName":"/usr/bin/connman-adapter",
+        "type": "regular",
+        "allowedNames": ["net.connman"]
+    },
+    "permissions": [
+        {
+            "service":"net.connman",
+            "inbound":["*"],
+            "outbound":["*"]
+        },
+    ]
+}
