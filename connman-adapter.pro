@@ -19,3 +19,6 @@ HEADERS = \
     src/networkingmodel.h
 
 TARGET = connman-adapter
+
+OBJECTS_DIR = .obj
+MOC_DIR = .moc
