@@ -11,12 +11,10 @@ QT = core dbus
 
 SOURCES = \
     src/main.cpp \
-    src/servicemgr.cpp \
-    src/networkingmodel.cpp
+    src/servicemgr.cpp
 
 HEADERS = \
-    src/servicemgr.h \
-    src/networkingmodel.h
+    src/servicemgr.h
 
 TARGET = connman-adapter
 

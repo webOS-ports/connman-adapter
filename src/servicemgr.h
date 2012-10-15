@@ -21,4 +21,21 @@
 #ifndef SERVICEMGR_H_
 #define SERVICEMGR_H_
 
+#include <glib.h>
+#include <luna-service2/lunaservice.h>
+
+class ServiceManager
+{
+public:
+    ServiceManager();
+    ~ServiceManager();
+
+    bool start(GMainLoop *mainloop);
+    void stop();
+
+private:
+    LSPalmService *_publicService;
+    LSHandle *_privateServiceHandle;
+};
+
 #endif // SERVICEMGR_H_

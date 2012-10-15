@@ -19,3 +19,55 @@
  */
 
 #include "servicemgr.h"
+
+static bool cbListServices(LSHandle* lshandle, LSMessage *message, void *user_data);
+static bool cbListTechnologies(LSHandle* lshandle, LSMessage *message, void *user_data);
+static bool cbCheckAvailable(LSHandle* lshandle, LSMessage *message, void *user_data);
+
+static LSMethod g_connmanManagerMethods[]  = {
+    { "checkAvailable", cbCheckAvailable },
+    { "listServices", cbListServices },
+    { "listTechnologies", cbListTechnologies },
+    { 0, 0 }
+};
+
+static bool cbListServices(LSHandle* lshandle, LSMessage *message, void *user_data)
+{
+    return true;
+}
+
+ServiceManager::ServiceManager()
+{
+}
+
+ServiceManager::~ServiceManager()
+{
+}
+
+bool ServiceManager::start(GMainLoop *mainloop)
+{
+    int ret;
+    LSError lserror;
+
+    LSErrorInit(&lserror);
+
+    ret = LSRegisterPalmService("net.connman", &_publicService, &lserror);
+    if (!ret) {
+        g_critical("Fatal - Could not initialize connman-adapter.  Is LunaService Down?. %s", lserror.message);
+        LSErrorFree(&lserror);
+        return 0;
+    }
+
+    ret = LSGmainAttachPalmService(_publicService, mainloop, &lserror);
+    if (!ret) {
+        g_critical("Fatal - Could not initialize connman-adapter.  Is LunaService Down?. %s", lserror.message);
+        LSErrorFree(&lserror);
+        return 0;
+    }
+
+    _privateServiceHandle = LSPalmServiceGetPrivateConnection(_publicService);
+}
+
+void ServiceManager::stop()
+{
+}

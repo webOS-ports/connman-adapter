@@ -20,9 +20,29 @@
 
 #include <QCoreApplication>
 
+#include "servicemgr.h"
+
+static GMainLoop *mainloop;
+
 int main(int argc, char **argv)
 {
+    int ret;
+    GMainContext *ctx;
+    ServiceManager smgr;
+
     QCoreApplication app(argc, argv);
+
+    ctx = g_main_context_default();
+    mainloop = g_main_loop_new(ctx, TRUE);
+
+    smgr.start(mainloop);
+
+    app.exec();
+
+    smgr.stop();
+
+    g_main_loop_unref(mainloop);
+    g_main_context_unref(ctx);
 
     return 0;
 }
