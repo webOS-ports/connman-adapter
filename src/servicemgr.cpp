@@ -20,22 +20,6 @@
 
 #include "servicemgr.h"
 
-static bool cbListServices(LSHandle* lshandle, LSMessage *message, void *user_data);
-static bool cbListTechnologies(LSHandle* lshandle, LSMessage *message, void *user_data);
-static bool cbCheckAvailable(LSHandle* lshandle, LSMessage *message, void *user_data);
-
-static LSMethod g_connmanManagerMethods[]  = {
-    { "checkAvailable", cbCheckAvailable },
-    { "listServices", cbListServices },
-    { "listTechnologies", cbListTechnologies },
-    { 0, 0 }
-};
-
-static bool cbListServices(LSHandle* lshandle, LSMessage *message, void *user_data)
-{
-    return true;
-}
-
 ServiceManager::ServiceManager()
 {
 }
@@ -66,6 +50,8 @@ bool ServiceManager::start(GMainLoop *mainloop)
     }
 
     _privateServiceHandle = LSPalmServiceGetPrivateConnection(_publicService);
+
+    _networkManager.start(_publicService);
 }
 
 void ServiceManager::stop()

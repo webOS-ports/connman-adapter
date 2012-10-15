@@ -18,27 +18,30 @@
  * LICENSE@@@
  */
 
-#ifndef SERVICEMGR_H_
-#define SERVICEMGR_H_
+#include "utilities.h"
 
-#include <glib.h>
-#include <luna-service2/lunaservice.h>
-
-#include "networkmanager.h"
-
-class ServiceManager
+json_object *convertQVariantToJsonObject(const QVariant &v)
 {
-public:
-    ServiceManager();
-    ~ServiceManager();
+    json_object *result = NULL;
 
-    bool start(GMainLoop *mainloop);
-    void stop();
+    switch(v.type()) {
+    case QVariant::Bool:
+        result = json_object_new_boolean(v.toBool());
+        break;
+    case QVariant::Int:
+        result = json_object_new_int(v.toInt());
+        break;
+    case QVariant::Double:
+        result = json_object_new_double(v.toDouble());
+        break;
+    case QVariant::String:
+        result = json_object_new_string(v.toString().toUtf8().data());
+        break;
+    case QVariant::Map:
+    case QVariant::List:
+        /* FIXME */
+        break;
+    }
 
-private:
-    LSPalmService *_publicService;
-    LSHandle *_privateServiceHandle;
-    NetworkManager _networkManager;
-};
-
-#endif // SERVICEMGR_H_
+    return result;
+}
