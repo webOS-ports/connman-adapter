@@ -43,6 +43,7 @@ public:
     static bool cbGetServices(LSHandle* lshandle, LSMessage *message, void *user_data);
 
     bool processGetPropertiesMethod(LSHandle *handle, LSMessage *message);
+    bool processSetPropertyMethod(LSHandle *handle, LSMessage *message);
 
 signals:
     void availabilityChanged(bool available);

@@ -165,6 +165,42 @@ bool NetworkManager::processGetPropertiesMethod(LSHandle *handle, LSMessage *mes
     return true;
 }
 
+bool NetworkManager::processSetPropertyMethod(LSHandle *handle, LSMessage *message)
+{
+    const char *payload;
+    json_object *request;
+    json_object *response;
+    LSError lsError;
+    bool success = false;
+
+    LSErrorInit(&lsError);
+
+    payload = LSMessageGetPayload(message);
+    if (!payload)
+        return false;
+
+    request = json_tokener_parse(payload);
+    if (!is_error(request)) {
+        /* FIXME do sync or async request to connman service? */
+        success = true;
+    }
+
+    response = json_object_new_object();
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
+    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lsError))
+        LSErrorFree(&lsError);
+
+    json_object_put(response);
+    json_object_put(request);
+
+    return true;
+
+error:
+    response = json_object_new_object();
+    json_object_object_add(response, "returnValue", json_object_new_boolean(false));
+}
+
 bool NetworkManager::cbCheckAvailable(LSHandle* lshandle, LSMessage *message, void *user_data)
 {
     return true;
@@ -174,14 +210,16 @@ bool NetworkManager::cbGetProperties(LSHandle* lshandle, LSMessage *message, voi
 {
     NetworkManager *self = (NetworkManager*) user_data;
 
-    LSMessageRef(message);
-
     return self->processGetPropertiesMethod(lshandle, message);
 }
 
 bool NetworkManager::cbSetProperty(LSHandle* lshandle, LSMessage *message, void *user_data)
 {
-    return true;
+    NetworkManager *self = (NetworkManager*) user_data;
+
+    LSMessageRef(message);
+
+    return self->processSetPropertyMethod(lshandle, message);
 }
 
 bool NetworkManager::cbGetTechnologies(LSHandle* lshandle, LSMessage *message, void *user_data)
