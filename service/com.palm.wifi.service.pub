@@ -1,4 +1,4 @@
 [D-BUS Service]
-Name=net.connman
+Name=com.palm.wifi
 Exec=/usr/bin/connman-adapter
 Type=static

@@ -2,11 +2,11 @@
     "role": {
         "exeName":"/usr/bin/connman-adapter",
         "type": "regular",
-        "allowedNames": ["net.connman"]
+        "allowedNames": ["com.palm.wifi"]
     },
     "permissions": [
         {
-            "service":"net.connman",
+            "service":"com.palm.wifi",
             "inbound":["*"],
             "outbound":["*"]
         },

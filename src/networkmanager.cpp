@@ -23,19 +23,15 @@
 #include "networkmanager.h"
 #include "utilities.h"
 
-static LSMethod _connmanManagerMethods[]  = {
-    /* NOTE: internal method to check wether the connman dbus service is running */
-    { "checkAvailable", NetworkManager::cbCheckAvailable },
-
-    { "getProperties", NetworkManager::cbGetProperties },
-    { "setProperty", NetworkManager::cbSetProperty },
-
-    { "getTechnologies", NetworkManager::cbGetTechnologies },
-    { "getServices", NetworkManager::cbGetServices },
-
-    /* NOTE: the missing methods of the net.connman.Manager API will not be implemented
-     * int the first version but should be addded later. */
-
+static LSMethod _serviceMethods[]  = {
+    { "getstate", NetworkManager::cbGetState },
+    { "setstate", NetworkManager::cbSetState },
+    { "findnetworks", NetworkManager::cbFindNetworks },
+    { "connect", NetworkManager::cbConnect },
+    { "getprofile", NetworkManager::cbGetProfile },
+    { "getinfo", NetworkManager::cbGetInfo },
+    { "deleteprofile", NetworkManager::cbDeleteProfile },
+    { "getprofilelist", NetworkManager::cbGetProfileList },
     { 0, 0 }
 };
 
@@ -59,10 +55,10 @@ void NetworkManager::start(LSPalmService *service)
 
     LSErrorInit(&lserror);
 
-    ret = LSPalmServiceRegisterCategory(service, "/manager",
-                NULL, _connmanManagerMethods, NULL, this, &lserror);
+    ret = LSPalmServiceRegisterCategory(service, "/",
+                NULL, _serviceMethods, NULL, this, &lserror);
     if (!ret) {
-        g_error("Failed to register service category /manager");
+        g_error("Failed to register service category /");
         return;
     }
 
@@ -143,91 +139,74 @@ void NetworkManager::propertyChanged(const QString &name, const QDBusVariant &va
     // FIXME fire a luna service signal here
 }
 
-bool NetworkManager::processGetPropertiesMethod(LSHandle *handle, LSMessage *message)
+bool NetworkManager::processGetStateMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
-    QMap<QString,QVariant>::iterator iter;
     LSError lsError;
 
     LSErrorInit(&lsError);
 
-    /* We have all properties already cached so we can just push them out here */
     response = json_object_new_object();
 
-    for (iter = _propertiesCache.begin(); iter != _propertiesCache.end(); ++iter) {
-        json_object_object_add(response,
-                               iter.key().toUtf8().data(),
-                               convertQVariantToJsonObject(iter.value()));
-    }
+    /* Should look like:
+     * {"returnValue":true,"wakeOnWlan":"enabled","status":"serviceDisabled"} */
+    json_object_object_add(response, "returnValue", json_object_new_boolean(true));
+    json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
+    json_object_object_add(response, "status", json_object_new_string("serviceDisabled"));
 
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
 
     return true;
 }
 
-bool NetworkManager::processSetPropertyMethod(LSHandle *handle, LSMessage *message)
-{
-    const char *payload;
-    json_object *request;
-    json_object *response;
-    LSError lsError;
-    bool success = false;
-
-    LSErrorInit(&lsError);
-
-    payload = LSMessageGetPayload(message);
-    if (!payload)
-        return false;
-
-    request = json_tokener_parse(payload);
-    if (!is_error(request)) {
-        /* FIXME do sync or async request to connman service? */
-        success = true;
-    }
-
-    response = json_object_new_object();
-    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
-
-    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lsError))
-        LSErrorFree(&lsError);
-
-    json_object_put(response);
-    json_object_put(request);
-
-    return true;
-
-error:
-    response = json_object_new_object();
-    json_object_object_add(response, "returnValue", json_object_new_boolean(false));
-}
-
-bool NetworkManager::cbCheckAvailable(LSHandle* lshandle, LSMessage *message, void *user_data)
+bool NetworkManager::processSetStateMethod(LSHandle *handle, LSMessage *message)
 {
     return true;
 }
 
-bool NetworkManager::cbGetProperties(LSHandle* lshandle, LSMessage *message, void *user_data)
-{
-    NetworkManager *self = (NetworkManager*) user_data;
-
-    return self->processGetPropertiesMethod(lshandle, message);
-}
-
-bool NetworkManager::cbSetProperty(LSHandle* lshandle, LSMessage *message, void *user_data)
-{
-    NetworkManager *self = (NetworkManager*) user_data;
-
-    LSMessageRef(message);
-
-    return self->processSetPropertyMethod(lshandle, message);
-}
-
-bool NetworkManager::cbGetTechnologies(LSHandle* lshandle, LSMessage *message, void *user_data)
+bool NetworkManager::processFindNetworksMethod(LSHandle *handle, LSMessage *message)
 {
     return true;
 }
 
-bool NetworkManager::cbGetServices(LSHandle* lshandle, LSMessage *message, void *user_data)
+bool NetworkManager::processConnectMethod(LSHandle *handle, LSMessage *message)
 {
     return true;
 }
+
+bool NetworkManager::processGetProfileMethod(LSHandle *handle, LSMessage *message)
+{
+    return true;
+}
+
+bool NetworkManager::processGetInfoMethod(LSHandle *handle, LSMessage *message)
+{
+    return true;
+}
+
+bool NetworkManager::processDeleteProfileMethod(LSHandle *handle, LSMessage *message)
+{
+    return true;
+}
+
+bool NetworkManager::processGetProfileListMethod(LSHandle *handle, LSMessage *message)
+{
+    return true;
+}
+
+#define LS2_CB_METHOD(name) \
+bool NetworkManager::cb##name(LSHandle* lshandle, LSMessage *message, void *user_data) \
+{ \
+    NetworkManager *self = (NetworkManager*) user_data; \
+    LSMessageRef(message); \
+    return self->process##name##Method(lshandle, message); \
+}
+
+LS2_CB_METHOD(GetState)
+LS2_CB_METHOD(SetState)
+LS2_CB_METHOD(FindNetworks)
+LS2_CB_METHOD(Connect)
+LS2_CB_METHOD(GetProfile)
+LS2_CB_METHOD(GetInfo)
+LS2_CB_METHOD(DeleteProfile)
+LS2_CB_METHOD(GetProfileList)

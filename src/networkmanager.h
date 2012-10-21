@@ -36,14 +36,23 @@ public:
 
     void start(LSPalmService *service);
 
-    static bool cbCheckAvailable(LSHandle* lshandle, LSMessage *message, void *user_data);
-    static bool cbGetProperties(LSHandle* lshandle, LSMessage *message, void *user_data);
-    static bool cbSetProperty(LSHandle* lshandle, LSMessage *message, void *user_data);
-    static bool cbGetTechnologies(LSHandle* lshandle, LSMessage *message, void *user_data);
-    static bool cbGetServices(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbGetState(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbSetState(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbFindNetworks(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbConnect(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbGetProfile(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbGetInfo(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbDeleteProfile(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbGetProfileList(LSHandle* lshandle, LSMessage *message, void *user_data);
 
-    bool processGetPropertiesMethod(LSHandle *handle, LSMessage *message);
-    bool processSetPropertyMethod(LSHandle *handle, LSMessage *message);
+    bool processGetStateMethod(LSHandle *handle, LSMessage *message);
+    bool processSetStateMethod(LSHandle *handle, LSMessage *message);
+    bool processFindNetworksMethod(LSHandle *handle, LSMessage *message);
+    bool processConnectMethod(LSHandle *handle, LSMessage *message);
+    bool processGetProfileMethod(LSHandle *handle, LSMessage *message);
+    bool processDeleteProfileMethod(LSHandle *handle, LSMessage *message);
+    bool processGetProfileListMethod(LSHandle *handle, LSMessage *message);
+    bool processGetInfoMethod(LSHandle *handle, LSMessage *message);
 
 signals:
     void availabilityChanged(bool available);

@@ -35,7 +35,7 @@ bool ServiceManager::start(GMainLoop *mainloop)
 
     LSErrorInit(&lserror);
 
-    ret = LSRegisterPalmService("net.connman", &_publicService, &lserror);
+    ret = LSRegisterPalmService("com.palm.wifi", &_publicService, &lserror);
     if (!ret) {
         g_critical("Fatal - Could not initialize connman-adapter.  Is LunaService Down?. %s", lserror.message);
         LSErrorFree(&lserror);
