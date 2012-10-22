@@ -189,8 +189,18 @@ bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *mess
     if (stateValue.isEmpty() || (stateValue != "enabled" && stateValue != "disabled"))
         goto done;
 
-    /* stateValue can now be only disabled or enabled */
-    setWifiPowered((stateValue == "enabled"));
+    if (stateValue == "enabled" && isWifiPowered()) {
+        json_object_object_add(response, "errorCode", json_object_new_int(15));
+        json_object_object_add(response, "errorText", json_object_new_string("AlreadyEnabled"));
+        goto done;
+    }
+    else if (stateValue == "disabled" && !isWifiPowered()) {
+        json_object_object_add(response, "errorCode", json_object_new_int(15));
+        json_object_object_add(response, "errorText", json_object_new_string("AlreadyDisabled"));
+        goto done;
+    }
+
+    setWifiPowered(stateValue == "enabled" ? true : false);
 
 done:
     if (root)
@@ -216,6 +226,12 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
 
     if (!checkForConnmanService(response))
         goto done;
+
+    if (!isWifiPowered()) {
+        json_object_object_add(response, "errorCode", json_object_new_int(12));
+        json_object_object_add(response, "errorText", json_object_new_string("NotPermitted"));
+        goto done;
+    }
 
 done:
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
