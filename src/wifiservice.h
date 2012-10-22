@@ -25,14 +25,12 @@
 
 #include <luna-service2/lunaservice.h>
 
-#include "connmanmanager.h"
-
-class NetworkManager : QObject
+class WifiNetworkService : QObject
 {
     Q_OBJECT
 public:
-    NetworkManager(QObject *parent = 0);
-    virtual ~NetworkManager();
+    WifiNetworkService(QObject *parent = 0);
+    virtual ~WifiNetworkService();
 
     void start(LSPalmService *service);
 
@@ -58,22 +56,10 @@ signals:
     void availabilityChanged(bool available);
 
 private:
-    ConnmanManager *_manager;
-    QDBusServiceWatcher *_serviceWatcher;
-    bool _serviceIsAvailable;
-    QDBusPendingCallWatcher *_getPropertiesWatcher;
-    QVariantMap _propertiesCache;
     bool _wifiServiceActive;
 
-private slots:
-    void connectToConnman(QString = "");
-    void disconnectFromConnman(QString = "");
-    void connmanUnregistered(QString = "");
-    void getPropertiesReply(QDBusPendingCallWatcher *call);
-    void propertyChanged(const QString &name, const QDBusVariant &value);
-
 private:
-    Q_DISABLE_COPY(NetworkManager);
+    Q_DISABLE_COPY(WifiNetworkService);
 };
 
 #endif

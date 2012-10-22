@@ -24,7 +24,7 @@
 #include <glib.h>
 #include <luna-service2/lunaservice.h>
 
-#include "networkmanager.h"
+#include "wifiservice.h"
 
 class ServiceManager
 {
@@ -38,7 +38,7 @@ public:
 private:
     LSPalmService *_publicService;
     LSHandle *_privateServiceHandle;
-    NetworkManager _networkManager;
+    WifiNetworkService _wifiNetworkService;
 };
 
 #endif // SERVICEMGR_H_

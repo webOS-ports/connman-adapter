@@ -5,23 +5,19 @@ CONFIG += qt
 TARGET_TYPE =
 
 CONFIG += link_pkgconfig
-PKGCONFIG = glib-2.0 gthread-2.0 luna-service2 cjson
+PKGCONFIG = glib-2.0 gthread-2.0 luna-service2 cjson connman-qt4
 
 QT = core dbus
 
 SOURCES = \
     src/main.cpp \
     src/servicemgr.cpp \
-    src/networkmanager.cpp \
-    src/connmanmanager.cpp \
-    src/commondbustypes.cpp \
+    src/wifiservice.cpp \
     src/utilities.cpp
 
 HEADERS = \
     src/servicemgr.h \
-    src/networkmanager.h \
-    src/connmanmanager.h \
-    src/commondbustypes.h \
+    src/wifiservice.h \
     src/utilities.h
 
 TARGET = connman-adapter

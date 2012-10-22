@@ -51,7 +51,7 @@ bool ServiceManager::start(GMainLoop *mainloop)
 
     _privateServiceHandle = LSPalmServiceGetPrivateConnection(_publicService);
 
-    _networkManager.start(_publicService);
+    _wifiNetworkService.start(_publicService);
 }
 
 void ServiceManager::stop()
