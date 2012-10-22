@@ -25,6 +25,8 @@
 
 #define WIFI_TECHNOLOGY_NAME    "wifi"
 
+#define MAX_SIGNAL_BARS         5
+
 static LSMethod _serviceMethods[]  = {
     { "getstatus", WifiNetworkService::cbGetStatus },
     { "setstate", WifiNetworkService::cbSetState },
@@ -234,7 +236,11 @@ done:
 bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
+    json_object *foundNetworks;
+    json_object *networkInfo;
+    json_object *availableSecurityTypes;
     LSError lsError;
+    bool success = false;
 
     LSErrorInit(&lsError);
 
@@ -249,7 +255,58 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
         goto done;
     }
 
+    /* FIXME should be done asynchronously */
+    _wifiTechnology->scan();
+
+    foundNetworks = json_object_new_array();
+    foreach(NetworkService *service, this->listNetworks()) {
+        QString connectState = "";
+        availableSecurityTypes = json_object_new_array();
+        networkInfo = json_object_new_object();
+
+        /* default values needed for each entry */
+        json_object_object_add(networkInfo, "ssid",
+            json_object_new_string(service->name().toUtf8().constData()));
+
+        /* connman only provides the security implementation here but no details about the
+         * key management. This way we can't map the connman types to the old style
+         * com.palm.wifi API types. */
+        foreach(QString securityType, service->security()) {
+            json_object_array_add(availableSecurityTypes,
+                json_object_new_string(securityType.toUtf8().constData()));
+        }
+
+        json_object_object_add(networkInfo, "availableSecurityTypes", availableSecurityTypes);
+
+        /* We only get a normalized value for the signal strength in range of 0-100 from
+         * connman so we have to convert it here to map it to com.palm.wifi API */
+        json_object_object_add(networkInfo, "signalBars",
+            json_object_new_int((service->strength() * MAX_SIGNAL_BARS) / 100));
+        json_object_object_add(networkInfo, "signalLevel", json_object_new_int(service->strength()));
+
+        if (service->state() == "failure")
+            /* FIXME we can't differ between "ipFailed" and "associationFailed" here; need
+             * to track service state somehow. */
+            connectState = "ipFailed";
+        else if (service->state() == "association")
+            connectState = "associating";
+        else if (service->state() == "online")
+            connectState = "ipConfigured";
+
+        if (!connectState.isEmpty()) {
+            json_object_object_add(networkInfo, "connectState",
+                json_object_new_string(connectState.toUtf8().constData()));
+        }
+
+        json_object_array_add(foundNetworks, networkInfo);
+    }
+
+    json_object_object_add(response, "foundNetworks", foundNetworks);
+    success = true;
+
 done:
+    json_object_object_add(response, "returnCode", json_object_new_boolean(success));
+
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
 
     return true;
