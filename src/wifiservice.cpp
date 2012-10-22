@@ -83,7 +83,15 @@ void WifiNetworkService::start(LSPalmService *service)
 
 void WifiNetworkService::updateTechnologies(const QMap<QString, NetworkTechnology*> &added, const QStringList &removed)
 {
-    /* FIXME check wether wifi technology disappeared */
+    QString wifiTechType = QString(WIFI_TECHNOLOGY_NAME);
+    if (added.contains(wifiTechType)) {
+        _wifiTechnology = added.value(wifiTechType);
+        connect(_wifiTechnology, SIGNAL(poweredChanged(bool)),
+                this, SLOT(wifiPoweredChanged(bool)));
+    }
+    else if (removed.contains(wifiTechType)) {
+        _wifiTechnology = NULL; // FIXME: is it needed?
+    }
 }
 
 void WifiNetworkService::managerAvailabilityChanged(bool available)
@@ -98,6 +106,8 @@ void WifiNetworkService::wifiPoweredChanged(bool powered)
 bool WifiNetworkService::checkForConnmanService(json_object *response)
 {
     if (!_manager->isAvailable()) {
+        qDebug() << "Connman service is not available; returning with error!";
+
         json_object_object_add(response, "returnValue", json_object_new_boolean(false));
         /* FIXME error codes are unknown right now so sending 1 as default */
         json_object_object_add(response, "errorCode", json_object_new_int(1));
@@ -180,14 +190,18 @@ bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *mess
     root = json_tokener_parse(str);
     if (!root || is_error(root)) {
         root = 0;
+        json_object_object_add(response, "errorText", json_object_new_string("InvalidRequest"));
         goto done;
     }
 
     state = json_object_object_get(root, "state");
     stateValue = json_object_get_string(state);
 
-    if (stateValue.isEmpty() || (stateValue != "enabled" && stateValue != "disabled"))
+    if (stateValue.isEmpty() || (stateValue != "enabled" && stateValue != "disabled")) {
+        json_object_object_add(response, "errorCode", json_object_new_int(1));
+        json_object_object_add(response, "errorText", json_object_new_string("InvalidStateValue"));
         goto done;
+    }
 
     if (stateValue == "enabled" && isWifiPowered()) {
         json_object_object_add(response, "errorCode", json_object_new_int(15));
@@ -201,6 +215,8 @@ bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *mess
     }
 
     setWifiPowered(stateValue == "enabled" ? true : false);
+
+    success = true;
 
 done:
     if (root)
