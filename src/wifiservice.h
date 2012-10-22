@@ -22,8 +22,10 @@
 #define CONNMAN_MANAGER_H_
 
 #include <QtDBus>
-
 #include <luna-service2/lunaservice.h>
+#include <networkmanager.h>
+#include <networktechnology.h>
+#include <networkservice.h>
 
 class WifiNetworkService : QObject
 {
@@ -57,6 +59,14 @@ signals:
 
 private:
     bool _wifiServiceActive;
+    NetworkManager *_manager;
+
+    bool checkForConnmanService(json_object *response);
+
+private slots:
+    void updateTechnologies(const QMap<QString, NetworkTechnology*> &added,
+                            const QStringList &removed);
+    void managerAvailabilityChanged(bool available);
 
 private:
     Q_DISABLE_COPY(WifiNetworkService);

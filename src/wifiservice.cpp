@@ -35,9 +35,21 @@ static LSMethod _serviceMethods[]  = {
     { 0, 0 }
 };
 
+/**
+ * TODO:
+ * - return an error whenever a luna method is called and connman service is not available
+ **/
+
 WifiNetworkService::WifiNetworkService(QObject *parent) :
-    QObject(parent)
+    QObject(parent),
+    _manager(false)
 {
+    _manager = NetworkManagerFactory::createInstance();
+
+    connect(_manager, SIGNAL(availabilityChanged(bool)),
+            this, SLOT(managerAvailabilityChanged(bool)));
+    connect(_manager, SIGNAL(technologiesChanged(QMap<QString, NetworkTechnology*>, QStringList)),
+            this, SLOT(updateTechnologies(QMap<QString, NetworkTechnology*>, QStringList)));
 }
 
 WifiNetworkService::~WifiNetworkService()
@@ -57,6 +69,31 @@ void WifiNetworkService::start(LSPalmService *service)
         g_error("Failed to register service category /");
         return;
     }
+
+    LSErrorFree(&lserror);
+}
+
+void WifiNetworkService::updateTechnologies(const QMap<QString, NetworkTechnology*> &added, const QStringList &removed)
+{
+    /* FIXME check wether wifi technology disappeared */
+}
+
+void WifiNetworkService::managerAvailabilityChanged(bool available)
+{
+    /* FIXME disable service and send signals */
+}
+
+bool WifiNetworkService::checkForConnmanService(json_object *response)
+{
+    if (!_manager->isAvailable()) {
+        json_object_object_add(response, "returnValue", json_object_new_boolean(false));
+        /* FIXME error codes are unknown right now so sending 1 as default */
+        json_object_object_add(response, "errorCode", json_object_new_int(1));
+        json_object_object_add(response, "errorText", json_object_new_string("Connman service is not availalbe"));
+        return false;
+    }
+
+    return true;
 }
 
 bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *message)
@@ -68,11 +105,14 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
 
     response = json_object_new_object();
 
+    if (!checkForConnmanService(response))
+        goto done;
+
     json_object_object_add(response, "returnValue", json_object_new_boolean(true));
     json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
     json_object_object_add(response, "status", json_object_new_string("serviceDisabled"));
-        // json_object_new_string(_wifiServiceActive ? "serviceEnabled" : "serviceDisabled"));
 
+done:
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
 
     return true;
@@ -80,21 +120,73 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
 
 bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *message)
 {
+    json_object *response;
+    LSError lsError;
+
+    LSErrorInit(&lsError);
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+done:
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
     return true;
 }
 
 bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *message)
 {
+    json_object *response;
+    LSError lsError;
+
+    LSErrorInit(&lsError);
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+done:
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
     return true;
 }
 
 bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *message)
 {
+    json_object *response;
+    LSError lsError;
+
+    LSErrorInit(&lsError);
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+done:
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
     return true;
 }
 
 bool WifiNetworkService::processGetProfileMethod(LSHandle *handle, LSMessage *message)
 {
+    json_object *response;
+    LSError lsError;
+
+    LSErrorInit(&lsError);
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+done:
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
     return true;
 }
 
@@ -107,6 +199,9 @@ bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *messa
 
     response = json_object_new_object();
 
+    if (!checkForConnmanService(response))
+        goto done;
+
     json_object_object_add(response, "returnValue", json_object_new_boolean(true));
 
     /* default values until we have something real */
@@ -116,6 +211,7 @@ bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *messa
     json_object_object_add(response, "roaming", json_object_new_string("disabled"));
     json_object_object_add(response, "powerSave", json_object_new_string("enabled"));
 
+done:
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
 
     return true;
@@ -123,11 +219,37 @@ bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *messa
 
 bool WifiNetworkService::processDeleteProfileMethod(LSHandle *handle, LSMessage *message)
 {
+    json_object *response;
+    LSError lsError;
+
+    LSErrorInit(&lsError);
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+done:
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
     return true;
 }
 
 bool WifiNetworkService::processGetProfileListMethod(LSHandle *handle, LSMessage *message)
 {
+    json_object *response;
+    LSError lsError;
+
+    LSErrorInit(&lsError);
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+done:
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
     return true;
 }
 
