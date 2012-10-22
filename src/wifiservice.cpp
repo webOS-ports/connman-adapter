@@ -262,6 +262,7 @@ done:
 bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
+    json_object *wifiinfo;
     LSError lsError;
 
     LSErrorInit(&lsError);
@@ -273,12 +274,16 @@ bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *messa
 
     json_object_object_add(response, "returnValue", json_object_new_boolean(true));
 
+    wifiinfo = json_object_new_object();
+
     /* default values until we have something real */
-    json_object_object_add(response, "macAddress", json_object_new_string("ff:ff:ff:ff:ff:ff"));
-    json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
-    json_object_object_add(response, "wmm", json_object_new_string("disabled"));
-    json_object_object_add(response, "roaming", json_object_new_string("disabled"));
-    json_object_object_add(response, "powerSave", json_object_new_string("enabled"));
+    json_object_object_add(wifiinfo, "macAddress", json_object_new_string("ff:ff:ff:ff:ff:ff"));
+    json_object_object_add(wifiinfo, "wakeOnWlan", json_object_new_string("disabled"));
+    json_object_object_add(wifiinfo, "wmm", json_object_new_string("disabled"));
+    json_object_object_add(wifiinfo, "roaming", json_object_new_string("disabled"));
+    json_object_object_add(wifiinfo, "powerSave", json_object_new_string("enabled"));
+
+    json_object_object_add(response, "wifiInfo", wifiinfo);
 
 done:
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
