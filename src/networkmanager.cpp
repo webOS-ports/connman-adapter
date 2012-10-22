@@ -24,7 +24,7 @@
 #include "utilities.h"
 
 static LSMethod _serviceMethods[]  = {
-    { "getstate", NetworkManager::cbGetState },
+    { "getstatus", NetworkManager::cbGetStatus },
     { "setstate", NetworkManager::cbSetState },
     { "findnetworks", NetworkManager::cbFindNetworks },
     { "connect", NetworkManager::cbConnect },
@@ -39,7 +39,8 @@ NetworkManager::NetworkManager(QObject *parent) :
     QObject(parent),
     _manager(NULL),
     _serviceWatcher(NULL),
-    _serviceIsAvailable(false)
+    _serviceIsAvailable(false),
+    _wifiServiceActive(false)
 {
     registerCommonDataTypes();
 }
@@ -139,7 +140,7 @@ void NetworkManager::propertyChanged(const QString &name, const QDBusVariant &va
     // FIXME fire a luna service signal here
 }
 
-bool NetworkManager::processGetStateMethod(LSHandle *handle, LSMessage *message)
+bool NetworkManager::processGetStatusMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
     LSError lsError;
@@ -148,11 +149,10 @@ bool NetworkManager::processGetStateMethod(LSHandle *handle, LSMessage *message)
 
     response = json_object_new_object();
 
-    /* Should look like:
-     * {"returnValue":true,"wakeOnWlan":"enabled","status":"serviceDisabled"} */
     json_object_object_add(response, "returnValue", json_object_new_boolean(true));
     json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
-    json_object_object_add(response, "status", json_object_new_string("serviceDisabled"));
+    json_object_object_add(response, "status",
+        json_object_new_string(_wifiServiceActive ? "serviceEnabled" : "serviceDisabled"));
 
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
 
@@ -181,6 +181,24 @@ bool NetworkManager::processGetProfileMethod(LSHandle *handle, LSMessage *messag
 
 bool NetworkManager::processGetInfoMethod(LSHandle *handle, LSMessage *message)
 {
+    json_object *response;
+    LSError lsError;
+
+    LSErrorInit(&lsError);
+
+    response = json_object_new_object();
+
+    json_object_object_add(response, "returnValue", json_object_new_boolean(true));
+
+    /* default values until we have something real */
+    json_object_object_add(response, "macAddress", json_object_new_string("ff:ff:ff:ff:ff:ff"));
+    json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
+    json_object_object_add(response, "wmm", json_object_new_string("disabled"));
+    json_object_object_add(response, "roaming", json_object_new_string("disabled"));
+    json_object_object_add(response, "powerSave", json_object_new_string("enabled"));
+
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
     return true;
 }
 
@@ -202,7 +220,7 @@ bool NetworkManager::cb##name(LSHandle* lshandle, LSMessage *message, void *user
     return self->process##name##Method(lshandle, message); \
 }
 
-LS2_CB_METHOD(GetState)
+LS2_CB_METHOD(GetStatus)
 LS2_CB_METHOD(SetState)
 LS2_CB_METHOD(FindNetworks)
 LS2_CB_METHOD(Connect)

@@ -36,7 +36,7 @@ public:
 
     void start(LSPalmService *service);
 
-    static bool cbGetState(LSHandle* lshandle, LSMessage *message, void *user_data);
+    static bool cbGetStatus(LSHandle* lshandle, LSMessage *message, void *user_data);
     static bool cbSetState(LSHandle* lshandle, LSMessage *message, void *user_data);
     static bool cbFindNetworks(LSHandle* lshandle, LSMessage *message, void *user_data);
     static bool cbConnect(LSHandle* lshandle, LSMessage *message, void *user_data);
@@ -45,7 +45,7 @@ public:
     static bool cbDeleteProfile(LSHandle* lshandle, LSMessage *message, void *user_data);
     static bool cbGetProfileList(LSHandle* lshandle, LSMessage *message, void *user_data);
 
-    bool processGetStateMethod(LSHandle *handle, LSMessage *message);
+    bool processGetStatusMethod(LSHandle *handle, LSMessage *message);
     bool processSetStateMethod(LSHandle *handle, LSMessage *message);
     bool processFindNetworksMethod(LSHandle *handle, LSMessage *message);
     bool processConnectMethod(LSHandle *handle, LSMessage *message);
@@ -63,6 +63,7 @@ private:
     bool _serviceIsAvailable;
     QDBusPendingCallWatcher *_getPropertiesWatcher;
     QVariantMap _propertiesCache;
+    bool _wifiServiceActive;
 
 private slots:
     void connectToConnman(QString = "");
