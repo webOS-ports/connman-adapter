@@ -60,13 +60,19 @@ signals:
 private:
     bool _wifiServiceActive;
     NetworkManager *_manager;
+    NetworkTechnology *_wifiTechnology;
 
     bool checkForConnmanService(json_object *response);
+    bool setWifiPowered(const bool &powered);
+    bool isWifiPowered() const;
+    QList<NetworkService*> listNetworks() const;
 
 private slots:
     void updateTechnologies(const QMap<QString, NetworkTechnology*> &added,
                             const QStringList &removed);
     void managerAvailabilityChanged(bool available);
+
+    void wifiPoweredChanged(bool powered);
 
 private:
     Q_DISABLE_COPY(WifiNetworkService);

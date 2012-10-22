@@ -23,6 +23,8 @@
 #include "wifiservice.h"
 #include "utilities.h"
 
+#define WIFI_TECHNOLOGY_NAME    "wifi"
+
 static LSMethod _serviceMethods[]  = {
     { "getstatus", WifiNetworkService::cbGetStatus },
     { "setstate", WifiNetworkService::cbSetState },
@@ -50,6 +52,12 @@ WifiNetworkService::WifiNetworkService(QObject *parent) :
             this, SLOT(managerAvailabilityChanged(bool)));
     connect(_manager, SIGNAL(technologiesChanged(QMap<QString, NetworkTechnology*>, QStringList)),
             this, SLOT(updateTechnologies(QMap<QString, NetworkTechnology*>, QStringList)));
+
+    _wifiTechnology = _manager->getTechnology(WIFI_TECHNOLOGY_NAME);
+    if (_wifiTechnology) {
+        connect(_wifiTechnology, SIGNAL(poweredChanged(bool)),
+                this, SIGNAL(wifiPoweredChanged(bool)));
+    }
 }
 
 WifiNetworkService::~WifiNetworkService()
@@ -83,6 +91,10 @@ void WifiNetworkService::managerAvailabilityChanged(bool available)
     /* FIXME disable service and send signals */
 }
 
+void WifiNetworkService::wifiPoweredChanged(bool powered)
+{
+}
+
 bool WifiNetworkService::checkForConnmanService(json_object *response)
 {
     if (!_manager->isAvailable()) {
@@ -94,6 +106,32 @@ bool WifiNetworkService::checkForConnmanService(json_object *response)
     }
 
     return true;
+}
+
+QList<NetworkService*> WifiNetworkService::listNetworks() const
+{
+    const QString wifiTypeName(WIFI_TECHNOLOGY_NAME);
+    QList<NetworkService*> networks;
+
+    foreach(NetworkService *network, _manager->getServices()) {
+        if (network->type() == wifiTypeName)
+            networks.append(network);
+    }
+
+    return networks;
+}
+
+bool WifiNetworkService::isWifiPowered() const
+{
+    if (_wifiTechnology)
+        return _wifiTechnology->powered();
+    return false;
+}
+
+bool WifiNetworkService::setWifiPowered(const bool &powered)
+{
+    if (_wifiTechnology)
+        _wifiTechnology->setPowered(powered);
 }
 
 bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *message)
@@ -110,7 +148,8 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
 
     json_object_object_add(response, "returnValue", json_object_new_boolean(true));
     json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
-    json_object_object_add(response, "status", json_object_new_string("serviceDisabled"));
+    json_object_object_add(response, "status",
+        json_object_new_string(isWifiPowered() ? "serviceEnabled" : "serviceDisabled"));
 
 done:
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
@@ -121,17 +160,47 @@ done:
 bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
+    json_object *root;
+    json_object *state;
+    QString stateValue;
     LSError lsError;
+    bool success = false;
 
     LSErrorInit(&lsError);
+
+    const char* str = LSMessageGetPayload(message);
+    if( !str )
+        return false;
 
     response = json_object_new_object();
 
     if (!checkForConnmanService(response))
         goto done;
 
+    root = json_tokener_parse(str);
+    if (!root || is_error(root)) {
+        root = 0;
+        goto done;
+    }
+
+    state = json_object_object_get(root, "state");
+    stateValue = json_object_get_string(state);
+
+    if (stateValue.isEmpty() || (stateValue != "enabled" && stateValue != "disabled"))
+        goto done;
+
+    /* stateValue can now be only disabled or enabled */
+    setWifiPowered((stateValue == "enabled"));
+
 done:
+    if (root)
+        json_object_put(root);
+
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
     LSMessageReply(handle, message, json_object_to_json_string(response), &lsError);
+
+    json_object_put(response);
 
     return true;
 }
