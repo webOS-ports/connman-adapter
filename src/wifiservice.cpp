@@ -39,11 +39,6 @@ static LSMethod _serviceMethods[]  = {
     { 0, 0 }
 };
 
-/**
- * TODO:
- * - return an error whenever a luna method is called and connman service is not available
- **/
-
 WifiNetworkService::WifiNetworkService(QObject *parent) :
     QObject(parent),
     _manager(false)
