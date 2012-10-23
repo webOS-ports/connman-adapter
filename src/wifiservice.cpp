@@ -150,10 +150,20 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
 {
     json_object *response;
     LSError lsError;
+    bool subscribed = false;
 
     LSErrorInit(&lsError);
 
     response = json_object_new_object();
+
+    if (LSMessageIsSubscription(message)) {
+        if (!LSSubscriptionProcess(handle, message, &subscribed, &lsError)) {
+            LSErrorPrint(&lsError, stderr);
+            LSErrorFree(&lsError);
+        }
+
+        json_object_object_add(response, "subscribed", json_object_new_boolean(subscribed));
+    }
 
     if (!checkForConnmanService(response))
         goto done;
