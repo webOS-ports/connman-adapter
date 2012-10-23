@@ -357,11 +357,29 @@ done:
     return true;
 }
 
+bool WifiNetworkService::connectWithSsid(const QString& ssid, const QString& securityType)
+{
+    return false;
+}
+
+bool WifiNetworkService::connectWithProfileId(int id)
+{
+    return false;
+}
+
 bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
+    json_object *request;
+    json_object *profileId;
+    json_object *ssid;
+    json_object *securityType;
+    QString ssidValue;
+    QString securityTypeValue;
     LSError lserror;
+    const char *payload;
     bool success = false;
+    int profileIdValue;
 
     LSErrorInit(&lserror);
 
@@ -369,6 +387,44 @@ bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *messa
 
     if (!checkForConnmanService(response))
         goto done;
+
+    payload = LSMessageGetPayload(message);
+    if( !payload )
+        return false;
+
+    request = json_tokener_parse(payload);
+    if (!request || is_error(request)) {
+        request = 0;
+        json_object_object_add(response, "errorText", json_object_new_string("InvalidRequest"));
+        goto done;
+    }
+
+    profileId = json_object_object_get(request, "profileId");
+    ssid = json_object_object_get(request, "ssid");
+    securityType = json_object_object_get(request, "securityType");
+
+    if (profileId && ssid) {
+        json_object_object_add(response, "errorText", json_object_new_string("Only profileId OR ssid as parameter is allowed"));
+        goto done;
+    }
+    else if (profileId && securityType) {
+        json_object_object_add(response, "errorText", json_object_new_string("Parameter securityType is not allowed when profileId is specified"));
+        goto done;
+    }
+
+    if (profileId) {
+        profileIdValue = json_object_get_int(profileId);
+        success = connectWithProfileId(profileIdValue);
+    }
+    else if (ssid) {
+        ssidValue = json_object_get_string(ssid);
+
+        if (securityType) {
+            securityTypeValue = json_object_get_string(securityType);
+        }
+
+        success = connectWithSsid(ssidValue, securityTypeValue);
+    }
 
 done:
     json_object_object_add(response, "returnValue", json_object_new_boolean(success));
@@ -379,6 +435,9 @@ done:
     }
 
     json_object_put(response);
+
+    if (request)
+        json_object_put(request);
 
     return true;
 }
