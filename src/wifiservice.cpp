@@ -132,7 +132,6 @@ bool WifiNetworkService::checkForConnmanService(json_object *response)
     if (!_manager->isAvailable()) {
         qDebug() << "Connman service is not available; returning with error!";
 
-        json_object_object_add(response, "returnValue", json_object_new_boolean(false));
         /* FIXME error codes are unknown right now so sending 1 as default */
         json_object_object_add(response, "errorCode", json_object_new_int(1));
         json_object_object_add(response, "errorText", json_object_new_string("Connman service is not availalbe"));
@@ -173,6 +172,7 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
     json_object *response;
     LSError lserror;
     bool subscribed = false;
+    bool success = false;
 
     LSErrorInit(&lserror);
 
@@ -190,13 +190,19 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
     if (!checkForConnmanService(response))
         goto done;
 
-    json_object_object_add(response, "returnValue", json_object_new_boolean(true));
     json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
     json_object_object_add(response, "status",
         json_object_new_string(isWifiPowered() ? "serviceEnabled" : "serviceDisabled"));
 
+    success = true;
+
 done:
-    LSMessageReply(handle, message, json_object_to_json_string(response), &lserror);
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
+    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+    }
 
     json_object_put(response);
 
@@ -355,6 +361,7 @@ bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *messa
 {
     json_object *response;
     LSError lserror;
+    bool success = false;
 
     LSErrorInit(&lserror);
 
@@ -364,6 +371,8 @@ bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *messa
         goto done;
 
 done:
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
     if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
@@ -378,6 +387,7 @@ bool WifiNetworkService::processGetProfileMethod(LSHandle *handle, LSMessage *me
 {
     json_object *response;
     LSError lserror;
+    bool success = false;
 
     LSErrorInit(&lserror);
 
@@ -387,6 +397,8 @@ bool WifiNetworkService::processGetProfileMethod(LSHandle *handle, LSMessage *me
         goto done;
 
 done:
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
     if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
@@ -402,6 +414,7 @@ bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *messa
     json_object *response;
     json_object *wifiinfo;
     LSError lserror;
+    bool success = false;
 
     LSErrorInit(&lserror);
 
@@ -409,8 +422,6 @@ bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *messa
 
     if (!checkForConnmanService(response))
         goto done;
-
-    json_object_object_add(response, "returnValue", json_object_new_boolean(true));
 
     wifiinfo = json_object_new_object();
 
@@ -423,7 +434,11 @@ bool WifiNetworkService::processGetInfoMethod(LSHandle *handle, LSMessage *messa
 
     json_object_object_add(response, "wifiInfo", wifiinfo);
 
+    success = true;
+
 done:
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
     if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
@@ -438,6 +453,7 @@ bool WifiNetworkService::processDeleteProfileMethod(LSHandle *handle, LSMessage 
 {
     json_object *response;
     LSError lserror;
+    bool success = false;
 
     LSErrorInit(&lserror);
 
@@ -447,6 +463,8 @@ bool WifiNetworkService::processDeleteProfileMethod(LSHandle *handle, LSMessage 
         goto done;
 
 done:
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
     if (LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
@@ -461,6 +479,7 @@ bool WifiNetworkService::processGetProfileListMethod(LSHandle *handle, LSMessage
 {
     json_object *response;
     LSError lserror;
+    bool success = false;
 
     LSErrorInit(&lserror);
 
@@ -470,6 +489,8 @@ bool WifiNetworkService::processGetProfileListMethod(LSHandle *handle, LSMessage
         goto done;
 
 done:
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
     if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
