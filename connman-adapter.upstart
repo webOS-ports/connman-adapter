@@ -1,0 +1,5 @@
+# -*- mode: conf; -*-
+
+respawn
+exec /usr/bin/connman-adapter
+

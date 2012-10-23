@@ -1,5 +1,0 @@
-# -*- mode: conf; -*-
-
-respawn
-exec @WEBOS_INSTALL_SBINDIR@/connman-adapter
-
