@@ -113,7 +113,7 @@ void WifiNetworkService::wifiPoweredChanged(bool powered)
 
     response = json_object_new_object();
     json_object_object_add(response, "returnValue", json_object_new_boolean(true));
-    json_object_object_add(response, "state",
+    json_object_object_add(response, "status",
         json_object_new_string(powered ? "serviceEnabled" : "serviceDisabled"));
     json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
     payload = json_object_to_json_string(response);
