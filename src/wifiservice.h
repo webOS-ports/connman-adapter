@@ -61,6 +61,7 @@ private:
     bool _wifiServiceActive;
     NetworkManager *_manager;
     NetworkTechnology *_wifiTechnology;
+    LSHandle *_privateService;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);

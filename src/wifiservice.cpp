@@ -73,6 +73,8 @@ void WifiNetworkService::start(LSPalmService *service)
 
     LSErrorInit(&lserror);
 
+    _privateService = LSPalmServiceGetPrivateConnection(service);
+
     ret = LSPalmServiceRegisterCategory(service, "/",
                 NULL, _serviceMethods, NULL, this, &lserror);
     if (!ret) {
@@ -103,6 +105,26 @@ void WifiNetworkService::managerAvailabilityChanged(bool available)
 
 void WifiNetworkService::wifiPoweredChanged(bool powered)
 {
+    json_object *response;
+    const char *payload;
+    LSError lserror;
+
+    LSErrorInit(&lserror);
+
+    response = json_object_new_object();
+    json_object_object_add(response, "state",
+        json_object_new_string(powered ? "enabled" : "disabled"));
+    payload = json_object_to_json_string(response);
+
+    if (!LSSubscriptionPost(_privateService, "/", "getstatus", payload, &lserror)) {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+    }
+
+    /* FIXME should we post to public subscribers as well? */
+
+    if (response && !is_error(response))
+        json_object_put(response);
 }
 
 bool WifiNetworkService::checkForConnmanService(json_object *response)
