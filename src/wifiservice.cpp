@@ -251,8 +251,7 @@ bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *mess
         goto done;
     }
     else if (stateValue == "disabled" && !isWifiPowered()) {
-        json_object_object_add(response, "errorCode", json_object_new_int(15));
-        json_object_object_add(response, "errorText", json_object_new_string("AlreadyDisabled"));
+        success = true;
         goto done;
     }
 
