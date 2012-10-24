@@ -67,7 +67,7 @@ private:
     bool setWifiPowered(const bool &powered);
     bool isWifiPowered() const;
     QList<NetworkService*> listNetworks() const;
-    bool connectWithSsid(const QString& ssid, const QString& securityType);
+    bool connectWithSsid(const QString& ssid, json_object *request, json_object *response);
     bool connectWithProfileId(int id);
 
 private slots:

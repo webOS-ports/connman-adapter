@@ -361,9 +361,45 @@ done:
     return true;
 }
 
-bool WifiNetworkService::connectWithSsid(const QString& ssid, const QString& securityType)
+bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *request, json_object *response)
 {
-    return false;
+    json_object *wasCreatedWithJoinOther;
+    json_object *security;
+    bool success = false;
+
+    /* Ok, we have several cases to handle here:
+     * 1. Open
+     * 2. WEP
+     * 3. Pre-shared key
+     * 4. Enterprise networks */
+
+    wasCreatedWithJoinOther = json_object_object_get(request, "wasCreatedWithJoinOther");
+
+    security = json_object_object_get(request, "security");
+    if (!security) {
+        /* We want to connect to an open network without any security enabled */
+        foreach (NetworkService *service, listNetworks()) {
+            if (service->name() == ssid) {
+                /* Be sure we're not yet connected to the network */
+                if (service->state() != "idle") {
+                    json_object_object_add(response, "errorText",
+                        json_object_new_string("Trying to connect to a network not in idle state"));
+                    break;
+                }
+
+                /* We can safely connect here and no user agent request will be issued by
+                 * connman */
+                service->requestConnect();
+                success = true;
+                break;
+            }
+        }
+    }
+    else {
+        /* FIXME handle different security types */
+    }
+
+    return success;
 }
 
 bool WifiNetworkService::connectWithProfileId(int id)
@@ -405,7 +441,6 @@ bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *messa
 
     profileId = json_object_object_get(request, "profileId");
     ssid = json_object_object_get(request, "ssid");
-    securityType = json_object_object_get(request, "securityType");
 
     if (profileId && ssid) {
         json_object_object_add(response, "errorText", json_object_new_string("Only profileId OR ssid as parameter is allowed"));
@@ -422,12 +457,7 @@ bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *messa
     }
     else if (ssid) {
         ssidValue = json_object_get_string(ssid);
-
-        if (securityType) {
-            securityTypeValue = json_object_get_string(securityType);
-        }
-
-        success = connectWithSsid(ssidValue, securityTypeValue);
+        success = connectWithSsid(ssidValue, request, response);
     }
 
 done:
