@@ -46,7 +46,9 @@ static LSMethod _serviceMethods[]  = {
 
 WifiNetworkService::WifiNetworkService(QObject *parent) :
     QObject(parent),
-    _manager(false)
+    _manager(NULL),
+    _wifiTechnology(NULL),
+    _currentService(NULL)
 {
     _manager = NetworkManagerFactory::createInstance();
 
@@ -110,6 +112,15 @@ void WifiNetworkService::wifiPoweredChanged(bool powered)
     LSError lserror;
 
     LSErrorInit(&lserror);
+
+    if (!powered &&
+        _currentService != NULL &&
+        (_stateOfCurrentService == READY || _stateOfCurrentService == ONLINE)) {
+        sendConnectionStatusToSubscribers("notAssociated");
+    }
+
+    _currentService = NULL;
+    _stateOfCurrentService = IDLE;
 
     response = json_object_new_object();
     json_object_object_add(response, "returnValue", json_object_new_boolean(true));
@@ -361,6 +372,131 @@ done:
     return true;
 }
 
+WifiNetworkService::ServiceState WifiNetworkService::mapConnmanServiceStateToSingle(QString state)
+{
+    ServiceState result = IDLE;
+
+    if (state == "idle")
+        result = IDLE;
+    else if (state == "association")
+        result = ASSOCIATION;
+    else if (state == "configuration")
+        result = CONFIGURATION;
+    else if (state == "ready")
+        result = READY;
+    else if (state == "online")
+        result = ONLINE;
+    else if (state == "disconnect")
+        result = DISCONNECT;
+    else if (state == "failure")
+        result = FAILURE;
+
+    return result;
+}
+
+QString WifiNetworkService::mapConnmanServiceStateToPalm(ServiceState state, ServiceState lastState)
+{
+    switch (state) {
+        case DISCONNECT:
+        case IDLE:
+            return "notAssociated";
+        case ASSOCIATION:
+            return "associating";
+        case CONFIGURATION:
+            return "associated";
+        case READY:
+        case ONLINE:
+            return "ipConfigured";
+        case FAILURE:
+            if (lastState == ASSOCIATION)
+                return "associationFailed";
+            else if (lastState == CONFIGURATION)
+                return "ipFailed";
+            break;
+    }
+
+    return "notAssociated";
+}
+
+void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
+{
+    ServiceState newState;
+    QString palmState;
+
+    newState = mapConnmanServiceStateToSingle(_currentService->state());
+    palmState = mapConnmanServiceStateToPalm(newState, _stateOfCurrentService);
+
+    sendConnectionStatusToSubscribers(palmState);
+
+    _stateOfCurrentService = newState;
+}
+
+void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
+{
+    json_object *serviceStatus;
+    json_object *networkInfo;
+    json_object *availableSecurityTypes;
+    json_object *ipInfo;
+    json_object *apInfo;
+    QVariantMap ipInfoMap;
+    const char *payload;
+    LSError lserror;
+
+    serviceStatus = json_object_new_object();
+
+    json_object_object_add(serviceStatus, "returnValue", json_object_new_boolean(true));
+    json_object_object_add(serviceStatus, "wakeOnWlan", json_object_new_string("disabled"));
+
+    json_object_object_add(serviceStatus, "status", json_object_new_string("connectionStateChanged"));
+
+    networkInfo = json_object_new_object();
+
+    json_object_object_add(networkInfo, "ssid",
+        json_object_new_string(_currentService->name().toUtf8().constData()));
+    json_object_object_add(networkInfo, "securityType", json_object_new_string(""));
+    json_object_object_add(networkInfo, "connectState", json_object_new_string(state.toUtf8().constData()));
+    json_object_object_add(networkInfo, "signalBars",
+            json_object_new_int((_currentService->strength() * MAX_SIGNAL_BARS) / 100));
+    json_object_object_add(networkInfo, "signalLevel", json_object_new_int(_currentService->strength()));
+    json_object_object_add(networkInfo, "lastConnectError", json_object_new_string(""));
+
+    json_object_object_add(serviceStatus, "networkInfo", networkInfo);
+
+    if (state == "ipConfigured") {
+        ipInfo = json_object_new_object();
+
+        /* FIXME we need to determine the interface via the technology API */
+        json_object_object_add(ipInfo, "interface", json_object_new_string("wlan0"));
+
+        ipInfoMap = _currentService->ipv4();
+        json_object_object_add(ipInfo, "ip", json_object_new_string(ipInfoMap["Address"].toByteArray().constData()));
+        json_object_object_add(ipInfo, "subnet", json_object_new_string(ipInfoMap["Netmask"].toByteArray().constData()));
+        json_object_object_add(ipInfo, "gateway", json_object_new_string(ipInfoMap["Gateway"].toByteArray().constData()));
+        json_object_object_add(ipInfo, "dns1", json_object_new_string(""));
+
+        json_object_object_add(serviceStatus, "ipInfo", ipInfo);
+    }
+
+    if (state == "associated" || state == "ipConfigured") {
+        apInfo = json_object_new_object();
+
+        json_object_object_add(apInfo, "bssid", json_object_new_string(""));
+        json_object_object_add(apInfo, "channel", json_object_new_string(""));
+        json_object_object_add(apInfo, "frequency", json_object_new_string(""));
+
+        json_object_object_add(serviceStatus, "apInfo", apInfo);
+    }
+
+    payload = json_object_to_json_string(serviceStatus);
+
+    if (!LSSubscriptionPost(_privateService, "/", "getstatus", payload, &lserror)) {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+    }
+
+    json_object_put(serviceStatus);
+}
+
 bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *request, json_object *response)
 {
     json_object *wasCreatedWithJoinOther;
@@ -387,9 +523,14 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
                     break;
                 }
 
+                _currentService = service;
+                _stateOfCurrentService = mapConnmanServiceStateToSingle(_currentService->state());
+
+                connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
+
                 /* We can safely connect here and no user agent request will be issued by
                  * connman */
-                service->requestConnect();
+                _currentService->requestConnect();
                 success = true;
                 break;
             }
