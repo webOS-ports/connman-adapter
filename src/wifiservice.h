@@ -58,10 +58,22 @@ signals:
     void availabilityChanged(bool available);
 
 private:
+    enum ServiceState {
+        IDLE,
+        ASSOCIATION,
+        CONFIGURATION,
+        READY,
+        ONLINE,
+        DISCONNECT,
+        FAILURE,
+    };
+
     bool _wifiServiceActive;
     NetworkManager *_manager;
     NetworkTechnology *_wifiTechnology;
     LSHandle *_privateService;
+    NetworkService *_currentService;
+    ServiceState _stateOfCurrentService;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);
@@ -70,12 +82,18 @@ private:
     bool connectWithSsid(const QString& ssid, json_object *request, json_object *response);
     bool connectWithProfileId(int id);
 
+    ServiceState mapConnmanServiceStateToSingle(QString state);
+    QString mapConnmanServiceStateToPalm(ServiceState state, ServiceState lastState);
+
+    void sendCurrentStatusToSubscribers(const QString& state);
+
 private slots:
     void updateTechnologies(const QMap<QString, NetworkTechnology*> &added,
                             const QStringList &removed);
     void managerAvailabilityChanged(bool available);
 
     void wifiPoweredChanged(bool powered);
+    void currentServiceStateChanged(const QString& changedState);
 
 private:
     Q_DISABLE_COPY(WifiNetworkService);
