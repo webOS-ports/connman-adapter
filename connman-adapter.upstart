@@ -1,5 +1,7 @@
 # -*- mode: conf; -*-
 
+start on stopped finish
+
 respawn
 exec /usr/bin/connman-adapter
 
