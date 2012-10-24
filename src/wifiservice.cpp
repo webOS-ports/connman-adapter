@@ -278,6 +278,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
 {
     json_object *response;
     json_object *foundNetworks;
+    json_object *network;
     json_object *networkInfo;
     json_object *availableSecurityTypes;
     LSError lserror;
@@ -303,6 +304,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
     foreach(NetworkService *service, this->listNetworks()) {
         QString connectState = "";
         availableSecurityTypes = json_object_new_array();
+        network = json_object_new_object();
         networkInfo = json_object_new_object();
 
         /* default values needed for each entry */
@@ -339,7 +341,8 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
                 json_object_new_string(connectState.toUtf8().constData()));
         }
 
-        json_object_array_add(foundNetworks, networkInfo);
+        json_object_object_add(network, "networkInfo", networkInfo);
+        json_object_array_add(foundNetworks, network);
     }
 
     json_object_object_add(response, "foundNetworks", foundNetworks);
