@@ -360,7 +360,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
     success = true;
 
 done:
-    json_object_object_add(response, "returnCode", json_object_new_boolean(success));
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
 
     if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
         LSErrorPrint(&lserror, stderr);
