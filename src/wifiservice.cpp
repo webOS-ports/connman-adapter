@@ -439,6 +439,8 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
     json_object *ipInfo;
     json_object *apInfo;
     QVariantMap ipInfoMap;
+    QStringList nameserverList;
+    QString nameserver;
     const char *payload;
     LSError lserror;
 
@@ -472,7 +474,15 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
         json_object_object_add(ipInfo, "ip", json_object_new_string(ipInfoMap["Address"].toByteArray().constData()));
         json_object_object_add(ipInfo, "subnet", json_object_new_string(ipInfoMap["Netmask"].toByteArray().constData()));
         json_object_object_add(ipInfo, "gateway", json_object_new_string(ipInfoMap["Gateway"].toByteArray().constData()));
-        json_object_object_add(ipInfo, "dns1", json_object_new_string(""));
+
+        /* pick first nameserver from the list as it's the one currently used */
+        nameserverList = ipInfoMap["Nameservers"].toStringList();
+        if (!nameserverList.isEmpty()) {
+            nameserver = nameserverList.first();
+
+            json_object_object_add(ipInfo, "dns1",
+                json_object_new_string(nameserver.toUtf8().constData()));
+        }
 
         json_object_object_add(serviceStatus, "ipInfo", ipInfo);
     }
