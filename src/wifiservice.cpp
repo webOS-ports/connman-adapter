@@ -487,16 +487,6 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
         json_object_object_add(serviceStatus, "ipInfo", ipInfo);
     }
 
-    if (state == "associated" || state == "ipConfigured") {
-        apInfo = json_object_new_object();
-
-        json_object_object_add(apInfo, "bssid", json_object_new_string(""));
-        json_object_object_add(apInfo, "channel", json_object_new_string(""));
-        json_object_object_add(apInfo, "frequency", json_object_new_string(""));
-
-        json_object_object_add(serviceStatus, "apInfo", apInfo);
-    }
-
     payload = json_object_to_json_string(serviceStatus);
 
     if (!LSSubscriptionPost(_privateService, "/", "getstatus", payload, &lserror)) {
