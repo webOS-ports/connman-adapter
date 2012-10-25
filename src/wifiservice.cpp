@@ -26,9 +26,11 @@
 #include <cjson/json.h>
 
 #include "wifiservice.h"
+#include "connmanagent.h"
 #include "utilities.h"
 
 #define WIFI_TECHNOLOGY_NAME    "wifi"
+#define AGENT_PATH              "/WifiSettings"
 
 #define MAX_SIGNAL_BARS         5
 
@@ -48,7 +50,8 @@ WifiNetworkService::WifiNetworkService(QObject *parent) :
     QObject(parent),
     _manager(NULL),
     _wifiTechnology(NULL),
-    _currentService(NULL)
+    _currentService(NULL),
+    _agent(this)
 {
     _manager = NetworkManagerFactory::createInstance();
 
@@ -62,6 +65,9 @@ WifiNetworkService::WifiNetworkService(QObject *parent) :
         connect(_wifiTechnology, SIGNAL(poweredChanged(bool)),
                 this, SIGNAL(wifiPoweredChanged(bool)));
     }
+
+    QDBusConnection::systemBus().registerObject(AGENT_PATH, this);
+    _manager->registerAgent(QString(AGENT_PATH));
 }
 
 WifiNetworkService::~WifiNetworkService()
@@ -546,6 +552,10 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
 bool WifiNetworkService::connectWithProfileId(int id)
 {
     return false;
+}
+
+void WifiNetworkService::provideInputForConnman(const QVariantMap& fields, const QDBusMessage& message)
+{
 }
 
 bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *message)

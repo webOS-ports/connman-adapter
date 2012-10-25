@@ -27,14 +27,19 @@
 #include <networktechnology.h>
 #include <networkservice.h>
 
-class WifiNetworkService : QObject
+#include "connmanagent.h"
+
+class WifiNetworkService : public QObject
 {
     Q_OBJECT
+
 public:
     WifiNetworkService(QObject *parent = 0);
     virtual ~WifiNetworkService();
 
     void start(LSPalmService *service);
+
+    void provideInputForConnman(const QVariantMap& fields, const QDBusMessage& message);
 
     static bool cbGetStatus(LSHandle* lshandle, LSMessage *message, void *user_data);
     static bool cbSetState(LSHandle* lshandle, LSMessage *message, void *user_data);
@@ -74,6 +79,7 @@ private:
     LSHandle *_privateService;
     NetworkService *_currentService;
     ServiceState _stateOfCurrentService;
+    ConnmanAgent _agent;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);

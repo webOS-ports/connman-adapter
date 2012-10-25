@@ -13,11 +13,13 @@ SOURCES = \
     src/main.cpp \
     src/servicemgr.cpp \
     src/wifiservice.cpp \
+    src/connmanagent.cpp \
     src/utilities.cpp
 
 HEADERS = \
     src/servicemgr.h \
     src/wifiservice.h \
+    src/connmanagent.h \
     src/utilities.h
 
 TARGET = connman-adapter
