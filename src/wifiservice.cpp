@@ -572,7 +572,7 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
                     }
 
                     /* FIXME take isInHex parameter in advance too */
-                    _connectionSettings.password = json_object_get_string(passKey);
+                    _connectionSettings.passphrase = json_object_get_string(passKey);
 
                     if (_connectionSettings.securityType == ConnectionSettings::WEP) {
                         keyIndex = json_object_object_get(simpleSecurity, "keyIndex");
@@ -610,6 +610,30 @@ bool WifiNetworkService::connectWithProfileId(int id)
 
 void WifiNetworkService::provideInputForConnman(const QVariantMap& fields, const QDBusMessage& message)
 {
+    QDBusMessage reply = message.createReply();
+    QDBusMessage error;
+    QVariantMap responseFields;
+
+    /* FIXME check provided service path with the one we're connecting to */
+
+    if (fields.contains("Passphrase")) {
+        responseFields.insert("Passphrase", QVariant(_connectionSettings.passphrase));
+    }
+
+    /* We're only providing a network name and not the binary ssid id */
+    if (fields.contains("Name")) {
+        responseFields.insert("Name", QVariant(_connectionSettings.name));
+    }
+
+    if (fields.contains("Identity") || fields.contains("Username") || fields.contains("Password")) {
+        error = message.createErrorReply(QString("net.connman.Agent.Error.Canceled"),
+            QString("Enterprise networks are not supported yet"));
+        QDBusConnection::systemBus().send(error);
+        return;
+    }
+
+    reply << responseFields;
+    QDBusConnection::systemBus().send(reply);
 }
 
 bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *message)

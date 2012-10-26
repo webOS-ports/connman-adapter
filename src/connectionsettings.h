@@ -27,7 +27,7 @@ public:
     ConnectionSettings()
         : hiddenNetwork(false),
           name(""),
-          password(""),
+          passphrase(""),
           securityType(NONE)
     {
     }
@@ -54,7 +54,7 @@ public:
         securityType = NONE;
         hiddenNetwork = false;
         name = "";
-        password = "";
+        passphrase = "";
     }
 
     enum SecurityType {
@@ -68,7 +68,7 @@ public:
     bool hiddenNetwork;
     int keyIndex;
     QString name;
-    QString password;
+    QString passphrase;
     SecurityType securityType;
 };
 
