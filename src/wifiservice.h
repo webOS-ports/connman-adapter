@@ -42,6 +42,7 @@ public:
     void start(LSPalmService *service);
 
     void provideInputForConnman(const QVariantMap& fields, const QDBusMessage& message);
+    void processErrorFromConnman(const QString& error);
 
     static bool cbGetStatus(LSHandle* lshandle, LSMessage *message, void *user_data);
     static bool cbSetState(LSHandle* lshandle, LSMessage *message, void *user_data);

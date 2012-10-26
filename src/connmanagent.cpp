@@ -43,6 +43,7 @@ void ConnmanAgent::Release()
 void ConnmanAgent::ReportError(const QDBusObjectPath &service_path, const QString &error)
 {
     qDebug() << "From " << service_path.path() << " got this error:\n" << error;
+    _service->processErrorFromConnman(error);
 }
 
 void ConnmanAgent::RequestBrowser(const QDBusObjectPath &service_path, const QString &url)

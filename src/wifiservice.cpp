@@ -649,6 +649,29 @@ void WifiNetworkService::provideInputForConnman(const QVariantMap& fields, const
     QDBusConnection::systemBus().send(reply);
 }
 
+void WifiNetworkService::processErrorFromConnman(const QString& error)
+{
+    LSError lserror;
+
+    LSErrorInit(&lserror);
+
+    if (_connectServiceRequest.valid) {
+        json_object_object_add(_connectServiceRequest.response, "returnValue",
+            json_object_new_boolean(false));
+
+        json_object_object_add(_connectServiceRequest.response, "errorText",
+            json_object_new_string(error.toUtf8().constData()));
+
+        if (!LSMessageReply(_connectServiceRequest.handle, _connectServiceRequest.message,
+                json_object_to_json_string(_connectServiceRequest.response), &lserror)) {
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
+        }
+
+        json_object_put(_connectServiceRequest.response);
+    }
+}
+
 bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
