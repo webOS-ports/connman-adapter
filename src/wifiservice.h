@@ -95,6 +95,7 @@ private:
 
     ServiceState mapConnmanServiceStateToSingle(QString state);
     QString mapConnmanServiceStateToPalm(ServiceState state, ServiceState lastState);
+    QString mapConnmanSecurityTypeToPalm(const QString& type);
 
     void sendConnectionStatusToSubscribers(const QString& state);
 

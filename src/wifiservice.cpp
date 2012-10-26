@@ -332,7 +332,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
         }
 
         json_object_object_add(networkInfo, "securityType",
-            json_object_new_string(securityTypeValue.toUtf8().constData()));
+            json_object_new_string(mapConnmanSecurityTypeToPalm(securityTypeValue).toUtf8().constData()));
 
         /* We only get a normalized value for the signal strength in range of 0-100 from
          * connman so we have to convert it here to map it to com.palm.wifi API */
@@ -394,6 +394,21 @@ WifiNetworkService::ServiceState WifiNetworkService::mapConnmanServiceStateToSin
         result = FAILURE;
 
     return result;
+}
+
+QString WifiNetworkService::mapConnmanSecurityTypeToPalm(const QString& type)
+{
+    if (type == "psk") {
+        return "wpa-personal";
+    }
+    else if (type == "ieee802x") {
+        return "enterprise";
+    }
+    else if (type == "wep") {
+        return "wep";
+    }
+
+    return "none";
 }
 
 QString WifiNetworkService::mapConnmanServiceStateToPalm(ServiceState state, ServiceState lastState)
