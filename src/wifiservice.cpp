@@ -318,7 +318,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
 
     foundNetworks = json_object_new_array();
     foreach(NetworkService *service, this->listNetworks()) {
-        QString connectState = "open";
+        QString connectState = "";
         QString securityTypeValue = "none";
         network = json_object_new_object();
         networkInfo = json_object_new_object();
