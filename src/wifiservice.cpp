@@ -297,7 +297,6 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
     json_object *foundNetworks;
     json_object *network;
     json_object *networkInfo;
-    json_object *availableSecurityTypes;
     LSError lserror;
     bool success = false;
 
@@ -319,8 +318,8 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
 
     foundNetworks = json_object_new_array();
     foreach(NetworkService *service, this->listNetworks()) {
-        QString connectState = "";
-        availableSecurityTypes = json_object_new_array();
+        QString connectState = "open";
+        QString securityTypeValue = "none";
         network = json_object_new_object();
         networkInfo = json_object_new_object();
 
@@ -328,15 +327,12 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
         json_object_object_add(networkInfo, "ssid",
             json_object_new_string(service->name().toUtf8().constData()));
 
-        /* connman only provides the security implementation here but no details about the
-         * key management. This way we can't map the connman types to the old style
-         * com.palm.wifi API types. */
-        foreach(QString securityType, service->security()) {
-            json_object_array_add(availableSecurityTypes,
-                json_object_new_string(securityType.toUtf8().constData()));
+        if (!service->security().isEmpty()) {
+            securityTypeValue = service->security().first();
         }
 
-        json_object_object_add(networkInfo, "availableSecurityTypes", availableSecurityTypes);
+        json_object_object_add(networkInfo, "securityType",
+            json_object_new_string(securityTypeValue.toUtf8().constData()));
 
         /* We only get a normalized value for the signal strength in range of 0-100 from
          * connman so we have to convert it here to map it to com.palm.wifi API */
@@ -459,7 +455,6 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
 {
     json_object *serviceStatus;
     json_object *networkInfo;
-    json_object *availableSecurityTypes;
     json_object *ipInfo;
     json_object *apInfo;
     QVariantMap ipInfoMap;
