@@ -553,7 +553,7 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
     foreach (NetworkService *service, listNetworks()) {
         if (service->name() == ssid) {
             /* Be sure we're not yet connected to the network */
-            if (service->state() != "idle") {
+            if (service->state() != "idle" && service->state() != "failure") {
                 json_object_object_add(response, "errorText",
                     json_object_new_string("Trying to connect to a network not in idle state"));
                 break;
