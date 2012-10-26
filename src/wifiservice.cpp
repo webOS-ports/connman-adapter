@@ -428,9 +428,27 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
 {
     ServiceState newState;
     QString palmState;
+    LSError lserror;
+
+    LSErrorInit(&lserror);
 
     newState = mapConnmanServiceStateToSingle(_currentService->state());
     palmState = mapConnmanServiceStateToPalm(newState, _stateOfCurrentService);
+
+    if (newState == CONFIGURATION && _connectServiceRequest.valid) {
+        /* We're now successfully associated with the network so we can complete the
+         * connect request from the user. */
+        json_object_object_add(_connectServiceRequest.response, "returnValue",
+            json_object_new_boolean(true));
+
+        if (!LSMessageReply(_connectServiceRequest.handle, _connectServiceRequest.message,
+                json_object_to_json_string(_connectServiceRequest.response), &lserror)) {
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
+        }
+
+        json_object_put(_connectServiceRequest.response);
+    }
 
     sendConnectionStatusToSubscribers(palmState);
 
@@ -690,14 +708,25 @@ bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *messa
     }
 
 done:
-    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+    if (!success) {
+        json_object_object_add(response, "returnValue", json_object_new_boolean(success));
 
-    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
-        LSErrorPrint(&lserror, stderr);
-        LSErrorFree(&lserror);
+        if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
+        }
+
+        json_object_put(response);
     }
+    else {
+        _connectServiceRequest.reset();
+        _connectServiceRequest.handle = handle;
+        _connectServiceRequest.message = message;
+        _connectServiceRequest.response = response;
+        _connectServiceRequest.valid = true;
 
-    json_object_put(response);
+        /* FIXME issue a short timeout to be sure our client gets a response */
+    }
 
     if (request)
         json_object_put(request);

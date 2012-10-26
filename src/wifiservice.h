@@ -29,6 +29,7 @@
 
 #include "connmanagent.h"
 #include "connectionsettings.h"
+#include "servicerequest.h"
 
 class WifiNetworkService : public QObject
 {
@@ -82,6 +83,7 @@ private:
     ServiceState _stateOfCurrentService;
     ConnmanAgent _agent;
     ConnectionSettings _connectionSettings;
+    LunaServiceRequestData _connectServiceRequest;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);
