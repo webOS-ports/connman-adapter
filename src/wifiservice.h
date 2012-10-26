@@ -28,6 +28,7 @@
 #include <networkservice.h>
 
 #include "connmanagent.h"
+#include "connectionsettings.h"
 
 class WifiNetworkService : public QObject
 {
@@ -80,6 +81,7 @@ private:
     NetworkService *_currentService;
     ServiceState _stateOfCurrentService;
     ConnmanAgent _agent;
+    ConnectionSettings _connectionSettings;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);

@@ -507,6 +507,12 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
 {
     json_object *wasCreatedWithJoinOther;
     json_object *security;
+    json_object *securityType;
+    json_object *ssidObj;
+    json_object *simpleSecurity;
+    json_object *enterpriseSecurity;
+    json_object *passKey;
+    json_object *keyIndex;
     bool success = false;
 
     /* Ok, we have several cases to handle here:
@@ -515,35 +521,83 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
      * 3. Pre-shared key
      * 4. Enterprise networks */
 
-    wasCreatedWithJoinOther = json_object_object_get(request, "wasCreatedWithJoinOther");
-
-    security = json_object_object_get(request, "security");
-    if (!security) {
-        /* We want to connect to an open network without any security enabled */
-        foreach (NetworkService *service, listNetworks()) {
-            if (service->name() == ssid) {
-                /* Be sure we're not yet connected to the network */
-                if (service->state() != "idle") {
-                    json_object_object_add(response, "errorText",
-                        json_object_new_string("Trying to connect to a network not in idle state"));
-                    break;
-                }
-
-                _currentService = service;
-                _stateOfCurrentService = mapConnmanServiceStateToSingle(_currentService->state());
-
-                connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
-
-                /* We can safely connect here and no user agent request will be issued by
-                 * connman */
-                _currentService->requestConnect();
-                success = true;
+    /* We want to connect to an open network without any security enabled */
+    foreach (NetworkService *service, listNetworks()) {
+        if (service->name() == ssid) {
+            /* Be sure we're not yet connected to the network */
+            if (service->state() != "idle") {
+                json_object_object_add(response, "errorText",
+                    json_object_new_string("Trying to connect to a network not in idle state"));
                 break;
             }
+
+            _currentService = service;
+            _stateOfCurrentService = mapConnmanServiceStateToSingle(_currentService->state());
+
+            connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
+
+            _connectionSettings.reset();
+
+            wasCreatedWithJoinOther = json_object_object_get(request, "wasCreatedWithJoinOther");
+            if (wasCreatedWithJoinOther) {
+                _connectionSettings.hiddenNetwork = json_object_get_boolean(wasCreatedWithJoinOther);
+            }
+
+            ssidObj = json_object_object_get(request, "ssid");
+            if (!ssidObj) {
+                json_object_object_add(response, "errorText", json_object_new_string("No ssid provided to connect to network"));
+                break;
+            }
+            _connectionSettings.name = json_object_get_string(ssidObj);
+
+            security = json_object_object_get(request, "security");
+            if (security) {
+                securityType = json_object_object_get(security, "securityType");
+                _connectionSettings.setupFromPalmSecurityType(QString(json_object_get_string(securityType)));
+
+                if (_connectionSettings.securityType == ConnectionSettings::WEP ||
+                    _connectionSettings.securityType == ConnectionSettings::PSK) {
+                    simpleSecurity = json_object_object_get(security, "simpleSecurity");
+                    if (!simpleSecurity) {
+                        json_object_object_add(response, "errorText",
+                            json_object_new_string("Indicated simple security type but no settings provided"));
+                        break;
+                    }
+
+                    passKey = json_object_object_get(simpleSecurity, "passKey");
+                    if (!passKey) {
+                        json_object_object_add(response, "errorText",
+                            json_object_new_string("No passkey for network security provided"));
+                        break;
+                    }
+
+                    /* FIXME take isInHex parameter in advance too */
+                    _connectionSettings.password = json_object_get_string(passKey);
+
+                    if (_connectionSettings.securityType == ConnectionSettings::WEP) {
+                        keyIndex = json_object_object_get(simpleSecurity, "keyIndex");
+                        if (!keyIndex) {
+                            json_object_object_add(response, "errorText",
+                                json_object_new_string("No key index provided but needed"));
+                            break;
+                        }
+
+                        _connectionSettings.keyIndex = json_object_get_int(keyIndex);
+                    }
+                }
+                else if (_connectionSettings.securityType == ConnectionSettings::IEEE8021x)
+                {
+                    json_object_object_add(response, "errorText",
+                        json_object_new_string("Networks with enterprise security are not support yet"));
+                    break;
+                }
+            }
+
+            /* Any further work is handled by the agent instance we connected to connman */
+            _currentService->requestConnect();
+            success = true;
+            break;
         }
-    }
-    else {
-        /* FIXME handle different security types */
     }
 
     return success;
