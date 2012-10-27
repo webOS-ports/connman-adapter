@@ -85,13 +85,15 @@ private:
     ConnmanAgent _agent;
     ConnectionSettings _connectionSettings;
     LunaServiceRequestData _connectServiceRequest;
+    QMap<QString,int> _profiles;
+    int _lastProfileId;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);
     bool isWifiPowered() const;
     QList<NetworkService*> listNetworks() const;
     bool connectWithSsid(const QString& ssid, json_object *request, json_object *response);
-    bool connectWithProfileId(int id);
+    bool connectWithProfileId(int id, json_object *response);
 
     ServiceState mapConnmanServiceStateToSingle(QString state);
     QString mapConnmanServiceStateToPalm(ServiceState state, ServiceState lastState);

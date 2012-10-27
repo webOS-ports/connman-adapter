@@ -51,7 +51,8 @@ WifiNetworkService::WifiNetworkService(QObject *parent) :
     _manager(NULL),
     _wifiTechnology(NULL),
     _currentService(NULL),
-    _agent(this)
+    _agent(this),
+    _lastProfileId(1)
 {
     _manager = NetworkManagerFactory::createInstance();
 
@@ -323,6 +324,17 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
         network = json_object_new_object();
         networkInfo = json_object_new_object();
 
+        if (_profiles.contains(service->dbusPath())) {
+            json_object_object_add(networkInfo, "profileId",
+                json_object_new_int(_profiles.value(service->dbusPath())));
+        }
+        else if (service->favorite()) {
+            qDebug() << "New profile: service = " << service->dbusPath() << " id = " << _lastProfileId;
+            _profiles.insert(service->dbusPath(), _lastProfileId);
+            json_object_object_add(networkInfo, "profileId", json_object_new_int(_lastProfileId));
+            _lastProfileId++;
+        }
+
         /* default values needed for each entry */
         json_object_object_add(networkInfo, "ssid",
             json_object_new_string(service->name().toUtf8().constData()));
@@ -444,7 +456,13 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
     LSErrorInit(&lserror);
 
     newState = mapConnmanServiceStateToSingle(_currentService->state());
+
+    if (newState != _stateOfCurrentService)
+        return;
+
     palmState = mapConnmanServiceStateToPalm(newState, _stateOfCurrentService);
+
+    qDebug() << "currentServiceStateChanged: palmState = " << palmState << " state = " << changedState;
 
     if (newState == CONFIGURATION && _connectServiceRequest.valid) {
         /* We're now successfully associated with the network so we can complete the
@@ -459,6 +477,12 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
         }
 
         json_object_put(_connectServiceRequest.response);
+
+        /* That means we can take the service as new profile as well */
+        if (!_profiles.contains(_currentService->dbusPath())) {
+            qDebug() << "New profile: service = " << _currentService->dbusPath() << " id = " << _lastProfileId;
+            _profiles.insert(_currentService->dbusPath(), _lastProfileId++);
+        }
     }
 
     sendConnectionStatusToSubscribers(palmState);
@@ -486,6 +510,11 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
     json_object_object_add(serviceStatus, "status", json_object_new_string("connectionStateChanged"));
 
     networkInfo = json_object_new_object();
+
+    if(_profiles.contains(_currentService->dbusPath())) {
+        json_object_object_add(networkInfo, "profileId",
+            json_object_new_int(_profiles.value(_currentService->dbusPath())));
+    }
 
     json_object_object_add(networkInfo, "ssid",
         json_object_new_string(_currentService->name().toUtf8().constData()));
@@ -557,6 +586,11 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
                 json_object_object_add(response, "errorText",
                     json_object_new_string("Trying to connect to a network not in idle state"));
                 break;
+            }
+
+            if (_currentService != NULL) {
+                /* Don't get any signals from former connected network anymore */
+                disconnect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
             }
 
             _currentService = service;
@@ -631,9 +665,32 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
     return success;
 }
 
-bool WifiNetworkService::connectWithProfileId(int id)
+bool WifiNetworkService::connectWithProfileId(int id, json_object *response)
 {
-    return false;
+    QString servicePath;
+    bool success = false;
+
+    if (!_profiles.values().contains(id)) {
+        json_object_object_add(response, "errorText", json_object_new_string("Invalid profile id provided"));
+        return false;
+    }
+
+    servicePath = _profiles.key(id);
+    foreach(NetworkService *service, listNetworks()) {
+        if (service->dbusPath() == servicePath) {
+            _currentService = service;
+            _stateOfCurrentService = mapConnmanServiceStateToSingle(_currentService->state());
+            _connectionSettings.reset();
+
+            connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
+            _currentService->requestConnect();
+
+            success = true;
+            break;
+        }
+    }
+
+    return success;
 }
 
 void WifiNetworkService::provideInputForConnman(const QVariantMap& fields, const QDBusMessage& message)
@@ -733,10 +790,12 @@ bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *messa
 
     if (profileId) {
         profileIdValue = json_object_get_int(profileId);
-        success = connectWithProfileId(profileIdValue);
+        qDebug() << "Connecting with profile id ...";
+        success = connectWithProfileId(profileIdValue, response);
     }
     else if (ssid) {
         ssidValue = json_object_get_string(ssid);
+        qDebug() << "Connecting with ssid ...";
         success = connectWithSsid(ssidValue, request, response);
     }
 
