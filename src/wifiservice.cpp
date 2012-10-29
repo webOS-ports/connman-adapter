@@ -494,6 +494,7 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
     LSError lserror;
     bool subscribed = false;
     bool success = false;
+    QString state;
 
     LSErrorInit(&lserror);
 
@@ -514,6 +515,11 @@ bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *mes
     json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
     json_object_object_add(response, "status",
         json_object_new_string(isWifiPowered() ? "serviceEnabled" : "serviceDisabled"));
+
+    if (isWifiPowered() && _currentService != NULL) {
+        state = convert_connman_service_state_to_palm(_stateOfCurrentService, _stateOfCurrentService);
+        appendConnectionStatusToMessage(response, _currentService, state);
+    }
 
     success = true;
 
