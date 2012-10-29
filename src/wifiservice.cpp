@@ -187,81 +187,20 @@ bool WifiNetworkService::setWifiPowered(const bool &powered)
         _wifiTechnology->setPowered(powered);
 }
 
-WifiNetworkService::ServiceState WifiNetworkService::mapConnmanServiceStateToSingle(QString state)
-{
-    ServiceState result = IDLE;
-
-    if (state == "idle")
-        result = IDLE;
-    else if (state == "association")
-        result = ASSOCIATION;
-    else if (state == "configuration")
-        result = CONFIGURATION;
-    else if (state == "ready")
-        result = READY;
-    else if (state == "online")
-        result = ONLINE;
-    else if (state == "disconnect")
-        result = DISCONNECT;
-    else if (state == "failure")
-        result = FAILURE;
-
-    return result;
-}
-
-QString WifiNetworkService::mapConnmanSecurityTypeToPalm(const QString& type)
-{
-    if (type == "psk") {
-        return "wpa-personal";
-    }
-    else if (type == "ieee802x") {
-        return "enterprise";
-    }
-    else if (type == "wep") {
-        return "wep";
-    }
-
-    return "none";
-}
-
-QString WifiNetworkService::mapConnmanServiceStateToPalm(ServiceState state, ServiceState lastState)
-{
-    switch (state) {
-        case DISCONNECT:
-        case IDLE:
-            return "notAssociated";
-        case ASSOCIATION:
-            return "associating";
-        case CONFIGURATION:
-            return "associated";
-        case READY:
-        case ONLINE:
-            return "ipConfigured";
-        case FAILURE:
-            if (lastState == ASSOCIATION)
-                return "associationFailed";
-            else if (lastState == CONFIGURATION)
-                return "ipFailed";
-            break;
-    }
-
-    return "notAssociated";
-}
-
 void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
 {
-    ServiceState newState;
+    int newState;
     QString palmState;
     LSError lserror;
 
     LSErrorInit(&lserror);
 
-    newState = mapConnmanServiceStateToSingle(_currentService->state());
+    newState = parse_connman_service_state(_currentService->state().toUtf8().constData());
 
     if (newState != _stateOfCurrentService)
         return;
 
-    palmState = mapConnmanServiceStateToPalm(newState, _stateOfCurrentService);
+    palmState = convert_connman_service_state_to_palm(newState, _stateOfCurrentService);
 
     qDebug() << "currentServiceStateChanged: palmState = " << palmState << " state = " << changedState;
 
@@ -395,7 +334,7 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
             }
 
             _currentService = service;
-            _stateOfCurrentService = mapConnmanServiceStateToSingle(_currentService->state());
+            _stateOfCurrentService = parse_connman_service_state(_currentService->state().toUtf8().constData());
 
             connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
 
@@ -480,7 +419,7 @@ bool WifiNetworkService::connectWithProfileId(int id, json_object *response)
     foreach(NetworkService *service, listNetworks()) {
         if (service->dbusPath() == servicePath) {
             _currentService = service;
-            _stateOfCurrentService = mapConnmanServiceStateToSingle(_currentService->state());
+            _stateOfCurrentService = parse_connman_service_state(_currentService->state().toUtf8().constData());
             _connectionSettings.reset();
 
             connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
@@ -702,7 +641,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
         }
 
         json_object_object_add(networkInfo, "securityType",
-            json_object_new_string(mapConnmanSecurityTypeToPalm(securityTypeValue).toUtf8().constData()));
+            json_object_new_string(convert_connman_security_type_to_palm(securityTypeValue.toUtf8().constData())));
 
         /* We only get a normalized value for the signal strength in range of 0-100 from
          * connman so we have to convert it here to map it to com.palm.wifi API */

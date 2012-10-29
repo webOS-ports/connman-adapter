@@ -81,7 +81,7 @@ private:
     NetworkTechnology *_wifiTechnology;
     LSHandle *_privateService;
     NetworkService *_currentService;
-    ServiceState _stateOfCurrentService;
+    int _stateOfCurrentService;
     ConnmanAgent _agent;
     ConnectionSettings _connectionSettings;
     LunaServiceRequestData _connectServiceRequest;
@@ -94,10 +94,6 @@ private:
     QList<NetworkService*> listNetworks() const;
     bool connectWithSsid(const QString& ssid, json_object *request, json_object *response);
     bool connectWithProfileId(int id, json_object *response);
-
-    ServiceState mapConnmanServiceStateToSingle(QString state);
-    QString mapConnmanServiceStateToPalm(ServiceState state, ServiceState lastState);
-    QString mapConnmanSecurityTypeToPalm(const QString& type);
 
     void sendConnectionStatusToSubscribers(const QString& state);
 
