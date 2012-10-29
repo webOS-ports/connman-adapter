@@ -187,205 +187,6 @@ bool WifiNetworkService::setWifiPowered(const bool &powered)
         _wifiTechnology->setPowered(powered);
 }
 
-bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *message)
-{
-    json_object *response;
-    LSError lserror;
-    bool subscribed = false;
-    bool success = false;
-
-    LSErrorInit(&lserror);
-
-    response = json_object_new_object();
-
-    if (LSMessageIsSubscription(message)) {
-        if (!LSSubscriptionProcess(handle, message, &subscribed, &lserror)) {
-            LSErrorPrint(&lserror, stderr);
-            LSErrorFree(&lserror);
-        }
-
-        json_object_object_add(response, "subscribed", json_object_new_boolean(subscribed));
-    }
-
-    if (!checkForConnmanService(response))
-        goto done;
-
-    json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
-    json_object_object_add(response, "status",
-        json_object_new_string(isWifiPowered() ? "serviceEnabled" : "serviceDisabled"));
-
-    success = true;
-
-done:
-    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
-
-    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
-        LSErrorPrint(&lserror, stderr);
-        LSErrorFree(&lserror);
-    }
-
-    json_object_put(response);
-
-    return true;
-}
-
-bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *message)
-{
-    json_object *response;
-    json_object *root;
-    json_object *state;
-    QString stateValue;
-    LSError lserror;
-    bool success = false;
-
-    LSErrorInit(&lserror);
-
-    const char* str = LSMessageGetPayload(message);
-    if( !str )
-        return false;
-
-    response = json_object_new_object();
-
-    if (!checkForConnmanService(response))
-        goto done;
-
-    root = json_tokener_parse(str);
-    if (!root || is_error(root)) {
-        root = 0;
-        json_object_object_add(response, "errorText", json_object_new_string("InvalidRequest"));
-        goto done;
-    }
-
-    state = json_object_object_get(root, "state");
-    stateValue = json_object_get_string(state);
-
-    if (stateValue.isEmpty() || (stateValue != "enabled" && stateValue != "disabled")) {
-        json_object_object_add(response, "errorCode", json_object_new_int(1));
-        json_object_object_add(response, "errorText", json_object_new_string("InvalidStateValue"));
-        goto done;
-    }
-
-    if (stateValue == "enabled" && isWifiPowered()) {
-        json_object_object_add(response, "errorCode", json_object_new_int(15));
-        json_object_object_add(response, "errorText", json_object_new_string("AlreadyEnabled"));
-        goto done;
-    }
-    else if (stateValue == "disabled" && !isWifiPowered()) {
-        success = true;
-        goto done;
-    }
-
-    setWifiPowered(stateValue == "enabled" ? true : false);
-
-    success = true;
-
-done:
-    if (root)
-        json_object_put(root);
-
-    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
-
-    LSMessageReply(handle, message, json_object_to_json_string(response), &lserror);
-
-    json_object_put(response);
-
-    return true;
-}
-
-bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *message)
-{
-    json_object *response;
-    json_object *foundNetworks;
-    json_object *network;
-    json_object *networkInfo;
-    LSError lserror;
-    bool success = false;
-
-    LSErrorInit(&lserror);
-
-    response = json_object_new_object();
-
-    if (!checkForConnmanService(response))
-        goto done;
-
-    if (!isWifiPowered()) {
-        json_object_object_add(response, "errorCode", json_object_new_int(12));
-        json_object_object_add(response, "errorText", json_object_new_string("NotPermitted"));
-        goto done;
-    }
-
-    /* FIXME should be done asynchronously */
-    _wifiTechnology->scan();
-
-    foundNetworks = json_object_new_array();
-    foreach(NetworkService *service, this->listNetworks()) {
-        QString connectState = "";
-        QString securityTypeValue = "none";
-        network = json_object_new_object();
-        networkInfo = json_object_new_object();
-
-        if (_profiles.contains(service->dbusPath())) {
-            json_object_object_add(networkInfo, "profileId",
-                json_object_new_int(_profiles.value(service->dbusPath())));
-        }
-        else if (service->favorite()) {
-            qDebug() << "New profile: service = " << service->dbusPath() << " id = " << _lastProfileId;
-            _profiles.insert(service->dbusPath(), _lastProfileId);
-            json_object_object_add(networkInfo, "profileId", json_object_new_int(_lastProfileId));
-            _lastProfileId++;
-        }
-
-        /* default values needed for each entry */
-        json_object_object_add(networkInfo, "ssid",
-            json_object_new_string(service->name().toUtf8().constData()));
-
-        if (!service->security().isEmpty()) {
-            securityTypeValue = service->security().first();
-        }
-
-        json_object_object_add(networkInfo, "securityType",
-            json_object_new_string(mapConnmanSecurityTypeToPalm(securityTypeValue).toUtf8().constData()));
-
-        /* We only get a normalized value for the signal strength in range of 0-100 from
-         * connman so we have to convert it here to map it to com.palm.wifi API */
-        json_object_object_add(networkInfo, "signalBars",
-            json_object_new_int((service->strength() * MAX_SIGNAL_BARS) / 100));
-        json_object_object_add(networkInfo, "signalLevel", json_object_new_int(service->strength()));
-
-        if (service->state() == "failure")
-            /* FIXME we can't differ between "ipFailed" and "associationFailed" here; need
-             * to track service state somehow. */
-            connectState = "ipFailed";
-        else if (service->state() == "association")
-            connectState = "associating";
-        else if (service->state() == "online")
-            connectState = "ipConfigured";
-
-        if (!connectState.isEmpty()) {
-            json_object_object_add(networkInfo, "connectState",
-                json_object_new_string(connectState.toUtf8().constData()));
-        }
-
-        json_object_object_add(network, "networkInfo", networkInfo);
-        json_object_array_add(foundNetworks, network);
-    }
-
-    json_object_object_add(response, "foundNetworks", foundNetworks);
-    success = true;
-
-done:
-    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
-
-    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
-        LSErrorPrint(&lserror, stderr);
-        LSErrorFree(&lserror);
-    }
-
-    json_object_put(response);
-
-    return true;
-}
-
 WifiNetworkService::ServiceState WifiNetworkService::mapConnmanServiceStateToSingle(QString state)
 {
     ServiceState result = IDLE;
@@ -742,6 +543,205 @@ void WifiNetworkService::processErrorFromConnman(const QString& error)
 
         json_object_put(_connectServiceRequest.response);
     }
+}
+
+bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *message)
+{
+    json_object *response;
+    LSError lserror;
+    bool subscribed = false;
+    bool success = false;
+
+    LSErrorInit(&lserror);
+
+    response = json_object_new_object();
+
+    if (LSMessageIsSubscription(message)) {
+        if (!LSSubscriptionProcess(handle, message, &subscribed, &lserror)) {
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
+        }
+
+        json_object_object_add(response, "subscribed", json_object_new_boolean(subscribed));
+    }
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+    json_object_object_add(response, "wakeOnWlan", json_object_new_string("disabled"));
+    json_object_object_add(response, "status",
+        json_object_new_string(isWifiPowered() ? "serviceEnabled" : "serviceDisabled"));
+
+    success = true;
+
+done:
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
+    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+    }
+
+    json_object_put(response);
+
+    return true;
+}
+
+bool WifiNetworkService::processSetStateMethod(LSHandle *handle, LSMessage *message)
+{
+    json_object *response;
+    json_object *root;
+    json_object *state;
+    QString stateValue;
+    LSError lserror;
+    bool success = false;
+
+    LSErrorInit(&lserror);
+
+    const char* str = LSMessageGetPayload(message);
+    if( !str )
+        return false;
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+    root = json_tokener_parse(str);
+    if (!root || is_error(root)) {
+        root = 0;
+        json_object_object_add(response, "errorText", json_object_new_string("InvalidRequest"));
+        goto done;
+    }
+
+    state = json_object_object_get(root, "state");
+    stateValue = json_object_get_string(state);
+
+    if (stateValue.isEmpty() || (stateValue != "enabled" && stateValue != "disabled")) {
+        json_object_object_add(response, "errorCode", json_object_new_int(1));
+        json_object_object_add(response, "errorText", json_object_new_string("InvalidStateValue"));
+        goto done;
+    }
+
+    if (stateValue == "enabled" && isWifiPowered()) {
+        json_object_object_add(response, "errorCode", json_object_new_int(15));
+        json_object_object_add(response, "errorText", json_object_new_string("AlreadyEnabled"));
+        goto done;
+    }
+    else if (stateValue == "disabled" && !isWifiPowered()) {
+        success = true;
+        goto done;
+    }
+
+    setWifiPowered(stateValue == "enabled" ? true : false);
+
+    success = true;
+
+done:
+    if (root)
+        json_object_put(root);
+
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
+    LSMessageReply(handle, message, json_object_to_json_string(response), &lserror);
+
+    json_object_put(response);
+
+    return true;
+}
+
+bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *message)
+{
+    json_object *response;
+    json_object *foundNetworks;
+    json_object *network;
+    json_object *networkInfo;
+    LSError lserror;
+    bool success = false;
+
+    LSErrorInit(&lserror);
+
+    response = json_object_new_object();
+
+    if (!checkForConnmanService(response))
+        goto done;
+
+    if (!isWifiPowered()) {
+        json_object_object_add(response, "errorCode", json_object_new_int(12));
+        json_object_object_add(response, "errorText", json_object_new_string("NotPermitted"));
+        goto done;
+    }
+
+    /* FIXME should be done asynchronously */
+    _wifiTechnology->scan();
+
+    foundNetworks = json_object_new_array();
+    foreach(NetworkService *service, this->listNetworks()) {
+        QString connectState = "";
+        QString securityTypeValue = "none";
+        network = json_object_new_object();
+        networkInfo = json_object_new_object();
+
+        if (_profiles.contains(service->dbusPath())) {
+            json_object_object_add(networkInfo, "profileId",
+                json_object_new_int(_profiles.value(service->dbusPath())));
+        }
+        else if (service->favorite()) {
+            qDebug() << "New profile: service = " << service->dbusPath() << " id = " << _lastProfileId;
+            _profiles.insert(service->dbusPath(), _lastProfileId);
+            json_object_object_add(networkInfo, "profileId", json_object_new_int(_lastProfileId));
+            _lastProfileId++;
+        }
+
+        /* default values needed for each entry */
+        json_object_object_add(networkInfo, "ssid",
+            json_object_new_string(service->name().toUtf8().constData()));
+
+        if (!service->security().isEmpty()) {
+            securityTypeValue = service->security().first();
+        }
+
+        json_object_object_add(networkInfo, "securityType",
+            json_object_new_string(mapConnmanSecurityTypeToPalm(securityTypeValue).toUtf8().constData()));
+
+        /* We only get a normalized value for the signal strength in range of 0-100 from
+         * connman so we have to convert it here to map it to com.palm.wifi API */
+        json_object_object_add(networkInfo, "signalBars",
+            json_object_new_int((service->strength() * MAX_SIGNAL_BARS) / 100));
+        json_object_object_add(networkInfo, "signalLevel", json_object_new_int(service->strength()));
+
+        if (service->state() == "failure")
+            /* FIXME we can't differ between "ipFailed" and "associationFailed" here; need
+             * to track service state somehow. */
+            connectState = "ipFailed";
+        else if (service->state() == "association")
+            connectState = "associating";
+        else if (service->state() == "online")
+            connectState = "ipConfigured";
+
+        if (!connectState.isEmpty()) {
+            json_object_object_add(networkInfo, "connectState",
+                json_object_new_string(connectState.toUtf8().constData()));
+        }
+
+        json_object_object_add(network, "networkInfo", networkInfo);
+        json_object_array_add(foundNetworks, network);
+    }
+
+    json_object_object_add(response, "foundNetworks", foundNetworks);
+    success = true;
+
+done:
+    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
+
+    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+    }
+
+    json_object_put(response);
+
+    return true;
 }
 
 bool WifiNetworkService::processConnectMethod(LSHandle *handle, LSMessage *message)
