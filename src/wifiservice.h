@@ -97,6 +97,8 @@ private:
 
     void sendConnectionStatusToSubscribers(const QString& state);
 
+    void appendConnectionStatusToMessage(json_object *message, NetworkService *service, const QString& state);
+
 private slots:
     void updateTechnologies(const QMap<QString, NetworkTechnology*> &added,
                             const QStringList &removed);

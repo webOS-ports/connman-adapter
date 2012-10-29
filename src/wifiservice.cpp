@@ -230,42 +230,34 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
     _stateOfCurrentService = newState;
 }
 
-void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
+void WifiNetworkService::appendConnectionStatusToMessage(json_object *message, NetworkService *service, const QString& state)
 {
-    json_object *serviceStatus;
     json_object *networkInfo;
     json_object *ipInfo;
     json_object *apInfo;
     QVariantMap ipInfoMap;
     QStringList nameserverList;
     QString nameserver;
-    const char *payload;
-    LSError lserror;
 
-    serviceStatus = json_object_new_object();
-
-    json_object_object_add(serviceStatus, "returnValue", json_object_new_boolean(true));
-    json_object_object_add(serviceStatus, "wakeOnWlan", json_object_new_string("disabled"));
-
-    json_object_object_add(serviceStatus, "status", json_object_new_string("connectionStateChanged"));
+    json_object_object_add(message, "status", json_object_new_string("connectionStateChanged"));
 
     networkInfo = json_object_new_object();
 
-    if(_profiles.contains(_currentService->dbusPath())) {
+    if(_profiles.contains(service->dbusPath())) {
         json_object_object_add(networkInfo, "profileId",
-            json_object_new_int(_profiles.value(_currentService->dbusPath())));
+            json_object_new_int(_profiles.value(service->dbusPath())));
     }
 
     json_object_object_add(networkInfo, "ssid",
-        json_object_new_string(_currentService->name().toUtf8().constData()));
+        json_object_new_string(service->name().toUtf8().constData()));
     json_object_object_add(networkInfo, "securityType", json_object_new_string(""));
     json_object_object_add(networkInfo, "connectState", json_object_new_string(state.toUtf8().constData()));
     json_object_object_add(networkInfo, "signalBars",
-            json_object_new_int((_currentService->strength() * MAX_SIGNAL_BARS) / 100));
-    json_object_object_add(networkInfo, "signalLevel", json_object_new_int(_currentService->strength()));
+            json_object_new_int((service->strength() * MAX_SIGNAL_BARS) / 100));
+    json_object_object_add(networkInfo, "signalLevel", json_object_new_int(service->strength()));
     json_object_object_add(networkInfo, "lastConnectError", json_object_new_string(""));
 
-    json_object_object_add(serviceStatus, "networkInfo", networkInfo);
+    json_object_object_add(message, "networkInfo", networkInfo);
 
     if (state == "ipConfigured") {
         ipInfo = json_object_new_object();
@@ -273,7 +265,7 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
         /* FIXME we need to determine the interface via the technology API */
         json_object_object_add(ipInfo, "interface", json_object_new_string("wlan0"));
 
-        ipInfoMap = _currentService->ipv4();
+        ipInfoMap = service->ipv4();
         json_object_object_add(ipInfo, "ip", json_object_new_string(ipInfoMap["Address"].toByteArray().constData()));
         json_object_object_add(ipInfo, "subnet", json_object_new_string(ipInfoMap["Netmask"].toByteArray().constData()));
         json_object_object_add(ipInfo, "gateway", json_object_new_string(ipInfoMap["Gateway"].toByteArray().constData()));
@@ -287,8 +279,20 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
                 json_object_new_string(nameserver.toUtf8().constData()));
         }
 
-        json_object_object_add(serviceStatus, "ipInfo", ipInfo);
+        json_object_object_add(message, "ipInfo", ipInfo);
     }
+}
+
+void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
+{
+    json_object *serviceStatus;
+    const char *payload;
+    LSError lserror;
+
+    serviceStatus = json_object_new_object();
+
+    json_object_object_add(serviceStatus, "returnValue", json_object_new_boolean(true));
+    appendConnectionStatusToMessage(serviceStatus, _currentService, state);
 
     payload = json_object_to_json_string(serviceStatus);
 
