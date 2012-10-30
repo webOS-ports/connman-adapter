@@ -197,9 +197,6 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
 
     newState = parse_connman_service_state(_currentService->state().toUtf8().constData());
 
-    if (newState != _stateOfCurrentService)
-        return;
-
     palmState = convert_connman_service_state_to_palm(newState, _stateOfCurrentService);
 
     qDebug() << "currentServiceStateChanged: palmState = " << palmState << " state = " << changedState;
