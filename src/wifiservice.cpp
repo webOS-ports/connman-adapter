@@ -220,6 +220,8 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
             qDebug() << "New profile: service = " << _currentService->dbusPath() << " id = " << _lastProfileId;
             _profiles.insert(_currentService->dbusPath(), _lastProfileId++);
         }
+
+        _connectServiceRequest.reset();
     }
 
     sendConnectionStatusToSubscribers(palmState);
