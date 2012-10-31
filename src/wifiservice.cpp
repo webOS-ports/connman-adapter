@@ -515,6 +515,45 @@ void WifiNetworkService::processErrorFromConnman(const QString& error)
     }
 }
 
+void WifiNetworkService::appendProfileListToMessage(json_object *message)
+{
+    json_object *profileList;
+    json_object *wifiProfile;
+    json_object *wifiProfileDetails;
+    json_object *security;
+
+    profileList = json_object_new_array();
+
+    foreach(ServiceProfile* profile, _profiles.list()) {
+        QString securityTypeValue = "none";
+        NetworkService *service = profile->service();
+        wifiProfile = json_object_new_object();
+
+        wifiProfileDetails = json_object_new_object();
+        json_object_object_add(wifiProfile, "wifiProfile", wifiProfileDetails);
+
+        json_object_object_add(wifiProfileDetails, "ssid",
+            json_object_new_string(service->name().toUtf8().constData()));
+        json_object_object_add(wifiProfileDetails, "profileId", json_object_new_int(profile->id()));
+
+        security = json_object_new_object();
+
+        if (!service->security().isEmpty()) {
+            securityTypeValue = service->security().first();
+        }
+
+        json_object_object_add(security, "securityType",
+            json_object_new_string(convert_connman_security_type_to_palm(securityTypeValue.toUtf8().constData())));
+
+        /* NOTE: we're not supporting the simpleSecurity/enterpriseSecurity element */
+        /* NOTE: we're not supporting the RoamingHistogram element */
+
+        json_object_array_add(profileList, wifiProfile);
+    }
+
+    json_object_object_add(message, "profileList", profileList);
+}
+
 bool WifiNetworkService::processGetStatusMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
@@ -934,10 +973,6 @@ done:
 bool WifiNetworkService::processGetProfileListMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
-    json_object *profileList;
-    json_object *wifiProfile;
-    json_object *wifiProfileDetails;
-    json_object *security;
     LSError lserror;
     bool success = false;
 
@@ -948,36 +983,7 @@ bool WifiNetworkService::processGetProfileListMethod(LSHandle *handle, LSMessage
     if (!checkForConnmanService(response))
         goto done;
 
-    profileList = json_object_new_array();
-
-    foreach(ServiceProfile* profile, _profiles.list()) {
-        QString securityTypeValue = "none";
-        NetworkService *service = profile->service();
-        wifiProfile = json_object_new_object();
-
-        wifiProfileDetails = json_object_new_object();
-        json_object_object_add(wifiProfile, "wifiProfile", wifiProfileDetails);
-
-        json_object_object_add(wifiProfileDetails, "ssid",
-            json_object_new_string(service->name().toUtf8().constData()));
-        json_object_object_add(wifiProfileDetails, "profileId", json_object_new_int(profile->id()));
-
-        security = json_object_new_object();
-
-        if (!service->security().isEmpty()) {
-            securityTypeValue = service->security().first();
-        }
-
-        json_object_object_add(security, "securityType",
-            json_object_new_string(convert_connman_security_type_to_palm(securityTypeValue.toUtf8().constData())));
-
-        /* NOTE: we're not supporting the simpleSecurity/enterpriseSecurity element */
-        /* NOTE: we're not supporting the RoamingHistogram element */
-
-        json_object_array_add(profileList, wifiProfile);
-    }
-
-    json_object_object_add(response, "profileList", profileList);
+    appendProfileListToMessage(response);
 
     success = true;
 
