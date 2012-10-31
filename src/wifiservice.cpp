@@ -51,8 +51,7 @@ WifiNetworkService::WifiNetworkService(QObject *parent) :
     _manager(NULL),
     _wifiTechnology(NULL),
     _currentService(NULL),
-    _agent(this),
-    _lastProfileId(1)
+    _agent(this)
 {
     _manager = NetworkManagerFactory::createInstance();
 
@@ -216,9 +215,9 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
         json_object_put(_connectServiceRequest.response);
 
         /* That means we can take the service as new profile as well */
-        if (!_profiles.contains(_currentService->dbusPath())) {
-            qDebug() << "New profile: service = " << _currentService->dbusPath() << " id = " << _lastProfileId;
-            _profiles.insert(_currentService->dbusPath(), _lastProfileId++);
+        if (_profiles.findProfileByDBusPath(_currentService->dbusPath()) != NULL) {
+            ServiceProfile *profile = _profiles.createProfile(_currentService->dbusPath());
+            qDebug() << "New profile: service = " << profile->dbusPath() << " id = " << profile->id();
         }
 
         _connectServiceRequest.reset();
@@ -237,14 +236,15 @@ void WifiNetworkService::appendConnectionStatusToMessage(json_object *message, N
     QVariantMap ipInfoMap;
     QStringList nameserverList;
     QString nameserver;
+    ServiceProfile *profile;
 
     json_object_object_add(message, "status", json_object_new_string("connectionStateChanged"));
 
     networkInfo = json_object_new_object();
 
-    if(_profiles.contains(service->dbusPath())) {
-        json_object_object_add(networkInfo, "profileId",
-            json_object_new_int(_profiles.value(service->dbusPath())));
+    profile = _profiles.findProfileByDBusPath(service->dbusPath());
+    if (profile != NULL) {
+        json_object_object_add(networkInfo, "profileId", json_object_new_int(profile->id()));
     }
 
     json_object_object_add(networkInfo, "ssid",
@@ -410,17 +410,17 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
 
 bool WifiNetworkService::connectWithProfileId(int id, json_object *response)
 {
-    QString servicePath;
+    ServiceProfile *profile;
     bool success = false;
 
-    if (!_profiles.values().contains(id)) {
+    profile = _profiles.findProfileById(id);
+    if (profile == NULL) {
         json_object_object_add(response, "errorText", json_object_new_string("Invalid profile id provided"));
         return false;
     }
 
-    servicePath = _profiles.key(id);
     foreach(NetworkService *service, listNetworks()) {
-        if (service->dbusPath() == servicePath) {
+        if (service->dbusPath() == profile->dbusPath()) {
             _currentService = service;
             _stateOfCurrentService = parse_connman_service_state(_currentService->state().toUtf8().constData());
             _connectionSettings.reset();
@@ -627,18 +627,19 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
     foreach(NetworkService *service, this->listNetworks()) {
         QString connectState = "";
         QString securityTypeValue = "none";
+        ServiceProfile *profile = NULL;
         network = json_object_new_object();
         networkInfo = json_object_new_object();
 
-        if (_profiles.contains(service->dbusPath())) {
-            json_object_object_add(networkInfo, "profileId",
-                json_object_new_int(_profiles.value(service->dbusPath())));
+        profile = _profiles.findProfileByDBusPath(service->dbusPath());
+        if (profile != NULL) {
+            json_object_object_add(networkInfo, "profileId", json_object_new_int(profile->id()));
         }
         else if (service->favorite()) {
-            qDebug() << "New profile: service = " << service->dbusPath() << " id = " << _lastProfileId;
-            _profiles.insert(service->dbusPath(), _lastProfileId);
-            json_object_object_add(networkInfo, "profileId", json_object_new_int(_lastProfileId));
-            _lastProfileId++;
+            profile = _profiles.createProfile(service->dbusPath());
+            qDebug() << "New profile: service = " << profile->dbusPath() << " id = " << profile->id();
+
+            json_object_object_add(networkInfo, "profileId", json_object_new_int(profile->id()));
         }
 
         /* default values needed for each entry */

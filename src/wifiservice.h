@@ -30,6 +30,7 @@
 #include "connmanagent.h"
 #include "connectionsettings.h"
 #include "servicerequest.h"
+#include "serviceprofile.h"
 
 class WifiNetworkService : public QObject
 {
@@ -85,8 +86,7 @@ private:
     ConnmanAgent _agent;
     ConnectionSettings _connectionSettings;
     LunaServiceRequestData _connectServiceRequest;
-    QMap<QString,int> _profiles;
-    int _lastProfileId;
+    ServiceProfileList _profiles;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);

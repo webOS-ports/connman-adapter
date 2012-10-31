@@ -20,6 +20,7 @@ HEADERS = \
     src/servicemgr.h \
     src/wifiservice.h \
     src/connmanagent.h \
+    src/serviceprofile.h \
     src/utilities.h
 
 TARGET = connman-adapter
