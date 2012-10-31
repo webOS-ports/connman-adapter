@@ -542,6 +542,8 @@ json_object* WifiNetworkService::createMessageFromProfile(ServiceProfile *profil
     json_object_object_add(security, "securityType",
         json_object_new_string(convert_connman_security_type_to_palm(securityTypeValue.toUtf8().constData())));
 
+    json_object_object_add(wifiProfileDetails, "security", security);
+
     /* NOTE: we're not supporting the simpleSecurity/enterpriseSecurity element */
     /* NOTE: we're not supporting the RoamingHistogram element */
 
