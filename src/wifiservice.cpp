@@ -872,8 +872,13 @@ done:
 bool WifiNetworkService::processDeleteProfileMethod(LSHandle *handle, LSMessage *message)
 {
     json_object *response;
+    json_object *request;
+    json_object *profileId;
     LSError lserror;
     bool success = false;
+    const char *payload;
+    int id;
+    ServiceProfile *profile = NULL;
 
     LSErrorInit(&lserror);
 
@@ -881,6 +886,34 @@ bool WifiNetworkService::processDeleteProfileMethod(LSHandle *handle, LSMessage 
 
     if (!checkForConnmanService(response))
         goto done;
+
+    payload = LSMessageGetPayload(message);
+    if( !payload )
+        return false;
+
+    request = json_tokener_parse(payload);
+    if (!request || is_error(request)) {
+        request = 0;
+        json_object_object_add(response, "errorText", json_object_new_string("InvalidRequest"));
+        goto done;
+    }
+
+    profileId = json_object_object_get(request, "profileId");
+    if (!profileId) {
+        json_object_object_add(response, "errorText", json_object_new_string("Missing argument: profileId"));
+        goto done;
+    }
+
+    id = json_object_get_int(profileId);
+    profile = _profiles.findProfileById(id);
+    if (profile != NULL) {
+        profile->service()->requestRemove();
+    }
+
+    success = true;
+
+    /* NOTE: update of our profile list is triggered through connman sending the
+     * corresponding update signals */
 
 done:
     json_object_object_add(response, "returnValue", json_object_new_boolean(success));
@@ -891,6 +924,9 @@ done:
     }
 
     json_object_put(response);
+
+    if (request != NULL)
+        json_object_put(request);
 
     return true;
 }
