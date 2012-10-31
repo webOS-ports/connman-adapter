@@ -106,6 +106,7 @@ private slots:
 
     void wifiPoweredChanged(bool powered);
     void currentServiceStateChanged(const QString& changedState);
+    void servicesChanged();
 
 private:
     Q_DISABLE_COPY(WifiNetworkService);

@@ -106,6 +106,11 @@ public:
         }
     }
 
+    const QList<ServiceProfile*> list()
+    {
+        return _profiles;
+    }
+
 private:
     int _lastProfileId;
     QList<ServiceProfile*> _profiles;

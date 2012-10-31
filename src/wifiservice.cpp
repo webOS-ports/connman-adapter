@@ -59,6 +59,7 @@ WifiNetworkService::WifiNetworkService(QObject *parent) :
             this, SLOT(managerAvailabilityChanged(bool)));
     connect(_manager, SIGNAL(technologiesChanged(QMap<QString, NetworkTechnology*>, QStringList)),
             this, SLOT(updateTechnologies(QMap<QString, NetworkTechnology*>, QStringList)));
+    connect(_manager, SIGNAL(servicesChanged()), this, SLOT(servicesChanged()));
 
     _wifiTechnology = _manager->getTechnology(WIFI_TECHNOLOGY_NAME);
     if (_wifiTechnology) {
@@ -103,6 +104,33 @@ void WifiNetworkService::updateTechnologies(const QMap<QString, NetworkTechnolog
     }
     else if (removed.contains(wifiTechType)) {
         _wifiTechnology = NULL; // FIXME: is it needed?
+    }
+}
+
+void WifiNetworkService::servicesChanged()
+{
+    QList<NetworkService*> availableServices = listNetworks();
+    QList<ServiceProfile*> profilesToRemove;
+
+    /* When the list of available services changes we have to adjust our list of available
+     * profiles */
+    foreach (ServiceProfile *profile, _profiles.list()) {
+        NetworkService* foundService = NULL;
+
+        foreach (NetworkService *service, availableServices) {
+            if (service->dbusPath() == profile->dbusPath()) {
+                foundService = service;
+                break;
+            }
+        }
+
+        if (foundService == NULL) {
+            profilesToRemove.append(profile);
+        }
+    }
+
+    foreach (ServiceProfile *profile, profilesToRemove) {
+        _profiles.removeProfileById(profile->id());
     }
 }
 
