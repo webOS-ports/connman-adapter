@@ -99,6 +99,8 @@ private:
 
     void appendConnectionStatusToMessage(json_object *message, NetworkService *service, const QString& state);
     void appendProfileListToMessage(json_object *message);
+    json_object* createMessageFromProfile(ServiceProfile *profile);
+
 
 private slots:
     void updateTechnologies(const QMap<QString, NetworkTechnology*> &added,
