@@ -244,7 +244,7 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
 
         /* That means we can take the service as new profile as well */
         if (_profiles.findProfileByDBusPath(_currentService->dbusPath()) != NULL) {
-            ServiceProfile *profile = _profiles.createProfile(_currentService->dbusPath());
+            ServiceProfile *profile = _profiles.createProfile(_currentService);
             qDebug() << "New profile: service = " << profile->dbusPath() << " id = " << profile->id();
         }
 
@@ -664,7 +664,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
             json_object_object_add(networkInfo, "profileId", json_object_new_int(profile->id()));
         }
         else if (service->favorite()) {
-            profile = _profiles.createProfile(service->dbusPath());
+            profile = _profiles.createProfile(service);
             qDebug() << "New profile: service = " << profile->dbusPath() << " id = " << profile->id();
 
             json_object_object_add(networkInfo, "profileId", json_object_new_int(profile->id()));

@@ -24,8 +24,8 @@
 class ServiceProfile
 {
 public:
-    ServiceProfile(const QString& dbusPath, int id)
-        : _dbusPath(dbusPath),
+    ServiceProfile(NetworkService *service, int id)
+        : _service(service),
           _id(id)
     {
     }
@@ -34,7 +34,7 @@ public:
 
     QString dbusPath()
     {
-        return _dbusPath;
+        return _service->dbusPath();
     }
 
     int id()
@@ -42,8 +42,12 @@ public:
         return _id;
     }
 
+    NetworkService* service() {
+        return _service;
+    }
+
 private:
-    QString _dbusPath;
+    NetworkService *_service;
     int _id;
 };
 
@@ -54,9 +58,9 @@ public:
     ServiceProfileList() : _lastProfileId(1) { }
     ~ServiceProfileList() { }
 
-    ServiceProfile* createProfile(const QString& dbusPath)
+    ServiceProfile* createProfile(NetworkService *service)
     {
-        ServiceProfile *profile = new ServiceProfile(dbusPath, _lastProfileId++);
+        ServiceProfile *profile = new ServiceProfile(service, _lastProfileId++);
         _profiles.append(profile);
         return profile;
     }
