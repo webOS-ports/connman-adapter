@@ -246,6 +246,8 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
         if (_profiles.findProfileByDBusPath(_currentService->dbusPath()) != NULL) {
             ServiceProfile *profile = _profiles.createProfile(_currentService);
             qDebug() << "New profile: service = " << profile->dbusPath() << " id = " << profile->id();
+
+            _currentService->setAutoConnect(true);
         }
 
         _connectServiceRequest.reset();
