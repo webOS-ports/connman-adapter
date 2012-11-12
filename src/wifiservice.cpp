@@ -258,6 +258,11 @@ void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
     _stateOfCurrentService = newState;
 }
 
+void WifiNetworkService::currentServiceStrengthChanged(const uint strength)
+{
+    sendConnectionStrengthToSubscribers(strength);
+}
+
 void WifiNetworkService::appendConnectionStatusToMessage(json_object *message, NetworkService *service, const QString& state)
 {
     json_object *networkInfo;
@@ -333,6 +338,29 @@ void WifiNetworkService::sendConnectionStatusToSubscribers(const QString& state)
     json_object_put(serviceStatus);
 }
 
+void WifiNetworkService::sendConnectionStrengthToSubscribers(const uint strength)
+{
+    json_object *serviceStatus;
+    const char *payload;
+    LSError lserror;
+
+    serviceStatus = json_object_new_object();
+
+    json_object_object_add(serviceStatus, "returnValue", json_object_new_boolean(true));
+    json_object_object_add(serviceStatus, "status", json_object_new_string("signalStrengthChanged"));
+    json_object_object_add(serviceStatus, "signalBars", json_object_new_int((_currentService->strength() * MAX_SIGNAL_BARS) / 100));
+    json_object_object_add(serviceStatus, "signalLevel", json_object_new_int(_currentService->strength()));
+
+    payload = json_object_to_json_string(serviceStatus);
+
+    if (!LSSubscriptionPost(_privateService, "/", "getstatus", payload, &lserror)) {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+    }
+
+    json_object_put(serviceStatus);
+}
+
 bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *request, json_object *response)
 {
     json_object *wasCreatedWithJoinOther;
@@ -370,6 +398,7 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
             _stateOfCurrentService = parse_connman_service_state(_currentService->state().toUtf8().constData());
 
             connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
+            connect(_currentService, SIGNAL(strengthChanged(const uint)), this, SLOT(currentServiceStrengthChanged(const uint)));
 
             _connectionSettings.reset();
 

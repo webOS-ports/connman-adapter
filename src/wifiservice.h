@@ -96,6 +96,7 @@ private:
     bool connectWithProfileId(int id, json_object *response);
 
     void sendConnectionStatusToSubscribers(const QString& state);
+    void sendConnectionStrengthToSubscribers(const uint strength);
 
     void appendConnectionStatusToMessage(json_object *message, NetworkService *service, const QString& state);
     void appendProfileListToMessage(json_object *message);
@@ -109,6 +110,7 @@ private slots:
 
     void wifiPoweredChanged(bool powered);
     void currentServiceStateChanged(const QString& changedState);
+    void currentServiceStrengthChanged(const uint strength);
     void servicesChanged();
 
 private:
