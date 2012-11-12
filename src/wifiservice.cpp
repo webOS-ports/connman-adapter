@@ -773,8 +773,16 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
         QString connectState = "";
         QString securityTypeValue = "none";
         ServiceProfile *profile = NULL;
+
         network = json_object_new_object();
         networkInfo = json_object_new_object();
+
+        if (service->name().length() == 0) {
+            /* Don't process hidden networks */
+            json_object_put(network);
+            json_object_put(networkInfo);
+            continue;
+        }
 
         profile = _profiles.findProfileByDBusPath(service->dbusPath());
         if (profile != NULL) {
