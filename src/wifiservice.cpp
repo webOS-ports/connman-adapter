@@ -743,30 +743,21 @@ done:
     return true;
 }
 
-bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *message)
+void WifiNetworkService::wifiScanFinished()
 {
     json_object *response;
     json_object *foundNetworks;
     json_object *network;
     json_object *networkInfo;
     LSError lserror;
-    bool success = false;
 
-    LSErrorInit(&lserror);
-
-    response = json_object_new_object();
-
-    if (!checkForConnmanService(response))
-        goto done;
-
-    if (!isWifiPowered()) {
-        json_object_object_add(response, "errorCode", json_object_new_int(12));
-        json_object_object_add(response, "errorText", json_object_new_string("NotPermitted"));
-        goto done;
+    if (this->listNetworks().length() == 0 && _scanRetry < 3) {
+        _wifiTechnology->requestScan();
+        _scanRetry++;
+        return;
     }
 
-    /* FIXME should be done asynchronously */
-    _wifiTechnology->scan();
+    response = json_object_new_object();
 
     foundNetworks = json_object_new_array();
     foreach(NetworkService *service, this->listNetworks()) {
@@ -834,17 +825,54 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
     }
 
     json_object_object_add(response, "foundNetworks", foundNetworks);
-    success = true;
+    json_object_object_add(response, "returnValue", json_object_new_boolean(true));
 
-done:
-    json_object_object_add(response, "returnValue", json_object_new_boolean(success));
-
-    if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
+    if (!LSMessageReply(_scanServiceRequest.handle, _scanServiceRequest.message, json_object_to_json_string(response), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
     }
 
     json_object_put(response);
+
+    disconnect(_wifiTechnology, SIGNAL(scanFinished()), this, SLOT(wifiScanFinished()));
+}
+
+bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *message)
+{
+    json_object *response;
+    json_object *foundNetworks;
+    json_object *network;
+    json_object *networkInfo;
+    LSError lserror;
+    bool success = false;
+
+    LSErrorInit(&lserror);
+
+    if (!checkForConnmanService(response) || !isWifiPowered()) {
+        response = json_object_new_object();
+
+        json_object_object_add(response, "errorCode", json_object_new_int(12));
+        json_object_object_add(response, "errorText", json_object_new_string("NotPermitted"));
+        json_object_object_add(response, "returnValue", json_object_new_boolean(false));
+
+        if (!LSMessageReply(handle, message, json_object_to_json_string(response), &lserror)) {
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
+        }
+
+        json_object_put(response);
+
+        return true;
+    }
+
+    _scanServiceRequest.reset();
+    _scanServiceRequest.handle = handle;
+    _scanServiceRequest.message = message;
+
+    _scanRetry = 0;
+
+    connect(_wifiTechnology, SIGNAL(scanFinished()), this, SLOT(wifiScanFinished()));
+    _wifiTechnology->requestScan();
 
     return true;
 }

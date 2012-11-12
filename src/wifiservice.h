@@ -86,7 +86,9 @@ private:
     ConnmanAgent _agent;
     ConnectionSettings _connectionSettings;
     LunaServiceRequestData _connectServiceRequest;
+    LunaServiceRequestData _scanServiceRequest;
     ServiceProfileList _profiles;
+    int _scanRetry;
 
     bool checkForConnmanService(json_object *response);
     bool setWifiPowered(const bool &powered);
@@ -111,6 +113,7 @@ private slots:
 
     void wifiPoweredChanged(bool powered);
     void wifiConnectedChanged(const bool &connected);
+    void wifiScanFinished();
     void currentServiceStateChanged(const QString& changedState);
     void currentServiceStrengthChanged(const uint strength);
     void servicesChanged();
