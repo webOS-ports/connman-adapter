@@ -1070,6 +1070,7 @@ bool WifiNetworkService::processDeleteProfileMethod(LSHandle *handle, LSMessage 
     profile = _profiles.findProfileById(id);
     if (profile != NULL) {
         profile->service()->requestRemove();
+        _profiles.removeProfileById(id);
     }
 
     success = true;
