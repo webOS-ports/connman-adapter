@@ -47,7 +47,7 @@ char* convert_connman_security_type_to_palm(const char* type)
 {
     if (!strcmp(type, "psk"))
         return "wpa-personal";
-    else if (!strcmp(type, "ieee802x"))
+    else if (!strcmp(type, "ieee8021x"))
         return "enterprise";
     else if (!strcmp(type, "wep"))
         return "wep";
