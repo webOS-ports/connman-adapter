@@ -32,5 +32,6 @@
 int parse_connman_service_state(const char* state);
 char* convert_connman_security_type_to_palm(const char* type);
 char* convert_connman_service_state_to_palm(int state, int last_state);
+char* convert_connman_service_state_to_palm(int state);
 
 #endif

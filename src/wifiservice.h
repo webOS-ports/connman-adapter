@@ -102,6 +102,7 @@ private:
     void appendProfileListToMessage(json_object *message);
     json_object* createMessageFromProfile(ServiceProfile *profile);
 
+    void assignCurrentService(NetworkService *service);
 
 private slots:
     void updateTechnologies(const QMap<QString, NetworkTechnology*> &added,
@@ -109,6 +110,7 @@ private slots:
     void managerAvailabilityChanged(bool available);
 
     void wifiPoweredChanged(bool powered);
+    void wifiConnectedChanged(const bool &connected);
     void currentServiceStateChanged(const QString& changedState);
     void currentServiceStrengthChanged(const uint strength);
     void servicesChanged();

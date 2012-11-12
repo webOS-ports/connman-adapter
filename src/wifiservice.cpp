@@ -65,6 +65,7 @@ WifiNetworkService::WifiNetworkService(QObject *parent) :
     if (_wifiTechnology) {
         connect(_wifiTechnology, SIGNAL(poweredChanged(bool)),
                 this, SIGNAL(wifiPoweredChanged(bool)));
+        connect(_wifiTechnology, SIGNAL(connectedChanged(const bool&)), this, SLOT(wifiConnectedChanged(const bool&)));
     }
 
     QDBusConnection::systemBus().registerObject(AGENT_PATH, this);
@@ -101,6 +102,7 @@ void WifiNetworkService::updateTechnologies(const QMap<QString, NetworkTechnolog
         _wifiTechnology = added.value(wifiTechType);
         connect(_wifiTechnology, SIGNAL(poweredChanged(bool)),
                 this, SLOT(wifiPoweredChanged(bool)));
+        connect(_wifiTechnology, SIGNAL(connectedChanged(const bool&)), this, SLOT(wifiConnectedChanged(const bool&)));
     }
     else if (removed.contains(wifiTechType)) {
         _wifiTechnology = NULL; // FIXME: is it needed?
@@ -174,6 +176,40 @@ void WifiNetworkService::wifiPoweredChanged(bool powered)
         json_object_put(response);
 }
 
+void WifiNetworkService::wifiConnectedChanged(const bool &connected)
+{
+    QString state;
+
+    /* When wifi is not connected anymore and we are connected to a wifi service we will
+     * get this information already through the service object and can ignore it here */
+    if (!connected)
+        return;
+
+    foreach(NetworkService *service, listNetworks()) {
+        if (service->state() == "ready" || service->state() == "online") {
+            /* We can safely ignore status updates for our current connected service */
+            if (_currentService && _currentService->dbusPath() == service->dbusPath()) {
+                break;
+            }
+            else {
+                if (_currentService) {
+                    /* It's not our currently connected service, so bring the old one down and
+                     * the new one up */
+                    state = "notAssociated";
+                    sendConnectionStatusToSubscribers(state);
+                }
+
+                assignCurrentService(service);
+
+                state = convert_connman_service_state_to_palm(_stateOfCurrentService);
+                sendConnectionStatusToSubscribers(state);
+
+                break;
+            }
+        }
+    }
+}
+
 bool WifiNetworkService::checkForConnmanService(json_object *response)
 {
     if (!_manager->isAvailable()) {
@@ -212,6 +248,17 @@ bool WifiNetworkService::setWifiPowered(const bool &powered)
 {
     if (_wifiTechnology)
         _wifiTechnology->setPowered(powered);
+}
+
+void WifiNetworkService::assignCurrentService(NetworkService *service)
+{
+    _currentService = service;
+    _stateOfCurrentService = parse_connman_service_state(_currentService->state().toUtf8().constData());
+
+    connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
+    connect(_currentService, SIGNAL(strengthChanged(const uint)), this, SLOT(currentServiceStrengthChanged(const uint)));
+
+    _connectionSettings.reset();
 }
 
 void WifiNetworkService::currentServiceStateChanged(const QString &changedState)
@@ -394,13 +441,7 @@ bool WifiNetworkService::connectWithSsid(const QString& ssid, json_object *reque
                 disconnect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
             }
 
-            _currentService = service;
-            _stateOfCurrentService = parse_connman_service_state(_currentService->state().toUtf8().constData());
-
-            connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
-            connect(_currentService, SIGNAL(strengthChanged(const uint)), this, SLOT(currentServiceStrengthChanged(const uint)));
-
-            _connectionSettings.reset();
+            assignCurrentService(service);
 
             wasCreatedWithJoinOther = json_object_object_get(request, "wasCreatedWithJoinOther");
             if (wasCreatedWithJoinOther) {
@@ -480,13 +521,8 @@ bool WifiNetworkService::connectWithProfileId(int id, json_object *response)
 
     foreach(NetworkService *service, listNetworks()) {
         if (service->dbusPath() == profile->dbusPath()) {
-            _currentService = service;
-            _stateOfCurrentService = parse_connman_service_state(_currentService->state().toUtf8().constData());
-            _connectionSettings.reset();
-
-            connect(_currentService, SIGNAL(stateChanged(const QString&)), this, SLOT(currentServiceStateChanged(const QString&)));
+            assignCurrentService(service);
             _currentService->requestConnect();
-
             success = true;
             break;
         }
