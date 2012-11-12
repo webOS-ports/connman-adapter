@@ -32,7 +32,7 @@
 #define WIFI_TECHNOLOGY_NAME    "wifi"
 #define AGENT_PATH              "/WifiSettings"
 
-#define MAX_SIGNAL_BARS         5
+#define MAX_SIGNAL_BARS         3
 
 static LSMethod _serviceMethods[]  = {
     { "getstatus", WifiNetworkService::cbGetStatus },
