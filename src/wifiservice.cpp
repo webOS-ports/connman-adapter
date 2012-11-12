@@ -771,6 +771,7 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
     foundNetworks = json_object_new_array();
     foreach(NetworkService *service, this->listNetworks()) {
         QString connectState = "";
+        char *security = NULL;
         QString securityTypeValue = "none";
         ServiceProfile *profile = NULL;
 
@@ -803,8 +804,10 @@ bool WifiNetworkService::processFindNetworksMethod(LSHandle *handle, LSMessage *
             securityTypeValue = service->security().first();
         }
 
-        json_object_object_add(networkInfo, "securityType",
-            json_object_new_string(convert_connman_security_type_to_palm(securityTypeValue.toUtf8().constData())));
+        security = convert_connman_security_type_to_palm(securityTypeValue.toUtf8().constData());
+        if (security) {
+            json_object_object_add(networkInfo, "securityType", json_object_new_string(security));
+        }
 
         /* We only get a normalized value for the signal strength in range of 0-100 from
          * connman so we have to convert it here to map it to com.palm.wifi API */

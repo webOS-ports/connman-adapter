@@ -52,7 +52,7 @@ char* convert_connman_security_type_to_palm(const char* type)
     else if (!strcmp(type, "wep"))
         return "wep";
 
-    return "none";
+    return NULL;
 }
 
 char* convert_connman_service_state_to_palm(int state, int last_state)
